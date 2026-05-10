@@ -28,38 +28,44 @@
             <ul class="nav-menu" id="nav-menu">
               <li><a href="../index.html">Início</a></li>
               <li><a href="quadras.html">Quadras</a></li>
-              <li><a href="minhas-reservas.html">Minhas Reservas</a></li>
-              <li><a href="login.html">Entrar</a></li>
+              <li><a href="../index.html#como-funciona">Como funciona</a></li>
+              <li><a href="proprietarios.html">Para proprietários</a></li>
+              <li data-auth-only hidden><a href="minhas-reservas.html">Minhas Reservas</a></li>
+              <li class="nav-mobile-only" data-guest-only><a href="login.html">Entrar</a></li>
             </ul>
           </nav>
 
           <div class="header-actions">
-            <span class="header-link" data-current-user>Visitante</span>
-            <a class="button button-light header-cta" href="minhas-reservas.html">Minhas Reservas</a>
+            <span class="header-link" data-current-user hidden></span>
+            <a class="button button-light header-cta" href="login.html" data-header-cta>Entrar</a>
           </div>
         </div>
       </header>
 
       <main class="app-main">
         <section class="page-hero section-orange section-pattern section-pattern-light">
-          <div class="container page-hero-grid">
-            <div class="page-hero-copy">
+          <div class="container page-hero-grid quadras-hero-grid">
+            <div class="page-hero-copy quadras-hero-copy">
               <span class="eyebrow eyebrow-light">busca esportiva</span>
-              <h1>Quadras disponíveis em Ribeirão Preto</h1>
+              <h1>Encontre a quadra ideal para jogar</h1>
               <p>
                 Explore as quadras disponíveis e filtre por modalidade,
                 bairro, data ou faixa de preço.
               </p>
             </div>
 
-            <div class="app-card-shell">
-              <div class="hero-mini-stat">
-                <span>Modalidades disponíveis</span>
-                <strong>Futebol, Vôlei, Beach Tennis e Tênis</strong>
+            <div class="app-card-shell quadras-hero-cards home-hero-cards">
+              <div class="hero-info-card">
+                <h3>Modalidades disponíveis</h3>
+                <p>Futebol, Vôlei, Beach Tennis e Tênis</p>
               </div>
-              <div class="hero-mini-stat">
-                <span>Base principal</span>
-                <strong>Ribeirão Preto/SP</strong>
+              <div class="hero-info-card">
+                <h3>Região de busca</h3>
+                <p>Ribeirão Preto/SP</p>
+              </div>
+              <div class="hero-info-card">
+                <h3>Reserva online</h3>
+                <p>Entre ou cadastre-se para confirmar seu horário</p>
               </div>
             </div>
           </div>
@@ -75,11 +81,14 @@
               <p class="floating-note" id="city-notice"></p>
             </div>
 
-            <div class="results-layout">
-              <aside class="form-card toolbar-card">
+            <div class="results-layout results-layout-quadras">
+              <aside class="form-card toolbar-card quadras-toolbar">
                 <h3>Filtros rápidos</h3>
-                <div class="toolbar-grid">
-                  <label class="toolbar-field">
+                <p class="toolbar-helper">
+                  Compare as opções com calma. Para confirmar a reserva, é preciso entrar.
+                </p>
+                <div class="toolbar-grid toolbar-grid-quadras">
+                  <label class="toolbar-field full-width">
                     Busca
                     <input id="filtro-busca" type="search" placeholder="Busque por nome, bairro ou modalidade" />
                   </label>
@@ -105,10 +114,6 @@
                     </select>
                   </label>
                   <label class="toolbar-field">
-                    Data
-                    <input id="filtro-data" type="date" />
-                  </label>
-                  <label class="toolbar-field">
                     Faixa de preço
                     <select id="filtro-preco">
                       <option value="Todos">Todos</option>
@@ -117,6 +122,14 @@
                       <option value="101-plus">Acima de R$ 100</option>
                     </select>
                   </label>
+                  <label class="toolbar-field">
+                    Data
+                    <input id="filtro-data" type="date" />
+                  </label>
+                </div>
+                <div class="filter-actions">
+                  <button class="button btn-primary" type="button" id="aplicar-filtros">Aplicar filtros</button>
+                  <button class="button btn-secondary" type="button" id="limpar-filtros">Limpar</button>
                 </div>
               </aside>
 
@@ -141,8 +154,6 @@
           </div>
           <div class="footer-links-group">
             <strong>Usuário</strong>
-            <a href="login.html">Login</a>
-            <a href="cadastro.html">Cadastro</a>
             <a href="minhas-reservas.html">Minhas reservas</a>
           </div>
           <div class="footer-links-group">

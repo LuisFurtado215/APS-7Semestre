@@ -75,7 +75,7 @@
       horarioFechamento: "22:00",
       descricao:
         "Quadra de areia com drenagem profissional, iluminação para jogos noturnos e atmosfera descontraída para partidas entre amigos.",
-      imagem: "assets/img/hero-beach.svg",
+      imagem: "assets/img/placeholder-6.jpg",
       status: "Ativa",
     },
     {
@@ -92,7 +92,7 @@
       horarioFechamento: "22:00",
       descricao:
         "Campo society moderno com gramado sintético de alta qualidade, iluminação integral e apoio de lanchonete para o pós-jogo.",
-      imagem: "assets/img/hero-football.svg",
+      imagem: "assets/img/placeholder-6.jpg",
       status: "Ativa",
     },
     {
@@ -109,7 +109,7 @@
       horarioFechamento: "22:00",
       descricao:
         "Espaço pensado para treinos técnicos e jogos casuais, com piso rápido e ambiente silencioso para melhor desempenho.",
-      imagem: "assets/img/hero-tennis.svg",
+      imagem: "assets/img/placeholder-6.jpg",
       status: "Ativa",
     },
     {
@@ -126,7 +126,7 @@
       horarioFechamento: "22:00",
       descricao:
         "Quadra coberta com ótima ventilação, arquibancada para acompanhar os jogos e estrutura ideal para treinos e amistosos.",
-      imagem: "assets/img/gallery-04.svg",
+      imagem: "assets/img/placeholder-6.jpg",
       status: "Ativa",
     },
     {
@@ -143,7 +143,7 @@
       horarioFechamento: "22:00",
       descricao:
         "Complexo esportivo com clima de confraternização, campo society amplo e apoio para eventos esportivos em grupo.",
-      imagem: "assets/img/gallery-02.svg",
+      imagem: "assets/img/placeholder-6.jpg",
       status: "Ativa",
     },
     {
@@ -160,7 +160,7 @@
       horarioFechamento: "22:00",
       descricao:
         "Espaço jovem para beach tennis com areia profissional, ducha de apoio e iluminação preparada para partidas noturnas.",
-      imagem: "assets/img/gallery-01.svg",
+      imagem: "assets/img/placeholder-6.jpg",
       status: "Ativa",
     },
   ];
@@ -232,14 +232,7 @@
       .replace(/[\u0300-\u036f]/g, "");
 
   const getBaseCourtImage = (modalidade) => {
-    const map = {
-      Futebol: "assets/img/hero-football.svg",
-      Vôlei: "assets/img/gallery-04.svg",
-      "Beach Tennis": "assets/img/hero-beach.svg",
-      Tênis: "assets/img/hero-tennis.svg",
-    };
-
-    return map[modalidade] || "assets/img/news-showcase.svg";
+    return "assets/img/placeholder-6.jpg";
   };
 
   const formatCurrency = (value) =>
@@ -291,8 +284,30 @@
   };
 
   const seedStorage = () => {
-    if (!readJson(STORAGE_KEYS.managedCourts, null)) {
+    const storedCourts = readJson(STORAGE_KEYS.managedCourts, null);
+
+    if (!storedCourts) {
       writeJson(STORAGE_KEYS.managedCourts, BASE_COURTS);
+    } else {
+      const baseCourtMap = new Map(BASE_COURTS.map((court) => [Number(court.id), court]));
+      writeJson(
+        STORAGE_KEYS.managedCourts,
+        storedCourts.map((court) => {
+          const baseCourt = baseCourtMap.get(Number(court.id));
+
+          if (!baseCourt) {
+            return {
+              ...court,
+              imagem: court.imagem || getBaseCourtImage(court.modalidade),
+            };
+          }
+
+          return {
+            ...court,
+            imagem: baseCourt.imagem,
+          };
+        })
+      );
     }
 
     if (!readJson(STORAGE_KEYS.reservations, null)) {
@@ -467,6 +482,37 @@
     modal.classList.add("is-open");
     modal.setAttribute("aria-hidden", "false");
     syncBodyLock();
+  };
+
+  const showBookingAuthModal = (courtId) => {
+    const court = getCourtById(courtId);
+
+    showModal({
+      title: court ? `Reservar ${court.nome}` : "Reservar quadra",
+      html: `
+        <p>Para reservar uma quadra, entre ou crie sua conta.</p>
+      `,
+      actions: [
+        {
+          label: "Entrar",
+          variant: "primary",
+          href: pageUrl("login.html"),
+        },
+        {
+          label: "Criar conta",
+          variant: "secondary",
+          href: pageUrl("cadastro.html"),
+        },
+      ],
+    });
+  };
+
+  const buildBookingAction = (court) => {
+    if (getCurrentUser()) {
+      return `<a class="button btn-primary" href="${pageUrl(`pages/agendamento.html?id=${court.id}`)}">Agendar horário</a>`;
+    }
+
+    return `<button class="button btn-primary" type="button" data-booking-gate="${court.id}">Agendar horário</button>`;
   };
 
   const saveScheduleOverrides = (value) => {
@@ -892,16 +938,16 @@
       <img class="card-cover" src="${assetUrl(court.imagem)}" alt="${court.nome}" />
       <div class="card-body">
         <div class="card-head">
-          <div>
+          <div class="court-card-copy">
             <h3>${court.nome}</h3>
-            <p>${court.modalidade} • ${court.bairro}</p>
+            <p class="court-meta">${court.modalidade} • ${court.bairro}</p>
           </div>
           <span class="price-badge">${formatCurrency(court.preco)}/hora</span>
         </div>
         <div class="tag-row">${buildFacilityBadges(court.estrutura)}</div>
         <div class="inline-actions">
           <a class="button btn-secondary" href="${pageUrl(`pages/detalhes-quadra.html?id=${court.id}`)}">Ver detalhes</a>
-          <a class="button btn-primary" href="${pageUrl(`pages/agendamento.html?id=${court.id}`)}">Agendar</a>
+          ${buildBookingAction(court)}
         </div>
       </div>
     </article>
@@ -915,6 +961,8 @@
     const neighborhoodSelect = document.getElementById("filtro-bairro");
     const dateInput = document.getElementById("filtro-data");
     const priceSelect = document.getElementById("filtro-preco");
+    const applyButton = document.getElementById("aplicar-filtros");
+    const clearButton = document.getElementById("limpar-filtros");
     const cityNotice = document.getElementById("city-notice");
 
     if (!listNode || !emptyNode) {
@@ -970,6 +1018,30 @@
       emptyNode.hidden = filtered.length > 0;
     };
 
+    const clearFilters = () => {
+      if (searchInput) {
+        searchInput.value = "";
+      }
+
+      if (modalitySelect) {
+        modalitySelect.value = "Todos";
+      }
+
+      if (neighborhoodSelect) {
+        neighborhoodSelect.value = "Todos";
+      }
+
+      if (priceSelect) {
+        priceSelect.value = "Todos";
+      }
+
+      if (dateInput) {
+        dateInput.value = getTomorrowValue();
+      }
+
+      applyFilters();
+    };
+
     [searchInput, modalitySelect, neighborhoodSelect, dateInput, priceSelect].forEach(
       (field) => {
         if (field) {
@@ -978,6 +1050,25 @@
         }
       }
     );
+
+    if (applyButton) {
+      applyButton.addEventListener("click", applyFilters);
+    }
+
+    if (clearButton) {
+      clearButton.addEventListener("click", clearFilters);
+    }
+
+    listNode.addEventListener("click", (event) => {
+      const trigger = event.target.closest("[data-booking-gate]");
+
+      if (!trigger) {
+        return;
+      }
+
+      event.preventDefault();
+      showBookingAuthModal(trigger.dataset.bookingGate);
+    });
 
     if (dateInput && !dateInput.value) {
       dateInput.value = getTomorrowValue();
@@ -1040,12 +1131,23 @@
             </ul>
           </div>
           <div class="inline-actions">
-            <a class="button btn-primary" href="${pageUrl(`pages/agendamento.html?id=${court.id}`)}">Agendar horário</a>
+            ${buildBookingAction(court)}
             <a class="button btn-secondary" href="${pageUrl("pages/quadras.html")}">Voltar para quadras</a>
           </div>
         </div>
       </div>
     `;
+
+    container.addEventListener("click", (event) => {
+      const trigger = event.target.closest("[data-booking-gate]");
+
+      if (!trigger) {
+        return;
+      }
+
+      event.preventDefault();
+      showBookingAuthModal(trigger.dataset.bookingGate);
+    });
   };
 
   const initAgendamentoPage = () => {
@@ -1155,6 +1257,11 @@
       }
 
       const user = getCurrentUser();
+
+      if (!user) {
+        showBookingAuthModal(court.id);
+        return;
+      }
 
       createReservation({
         cliente: user?.name || "Usuário Agendei Quadras",
@@ -1665,11 +1772,35 @@
   };
 
   const initCurrentUserBadge = () => {
-    const target = document.querySelector("[data-current-user]");
     const currentUser = getCurrentUser();
+    const headerCta = document.querySelector("[data-header-cta]");
 
-    if (target && currentUser?.name) {
-      target.textContent = currentUser.name;
+    document.querySelectorAll("[data-current-user]").forEach((target) => {
+      if (currentUser?.name) {
+        target.textContent = currentUser.name;
+        target.hidden = false;
+      } else {
+        target.textContent = "";
+        target.hidden = true;
+      }
+    });
+
+    document.querySelectorAll("[data-auth-only]").forEach((node) => {
+      node.hidden = !currentUser;
+    });
+
+    document.querySelectorAll("[data-guest-only]").forEach((node) => {
+      node.hidden = Boolean(currentUser);
+    });
+
+    if (headerCta) {
+      if (currentUser) {
+        headerCta.textContent = "Minhas reservas";
+        headerCta.href = pageUrl("minhas-reservas.html");
+      } else {
+        headerCta.textContent = "Entrar";
+        headerCta.href = pageUrl("login.html");
+      }
     }
 
     document.querySelectorAll("[data-logout]").forEach((button) => {
