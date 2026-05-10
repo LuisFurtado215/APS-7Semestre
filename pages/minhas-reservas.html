@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minhas Reservas | Agendei Quadras</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../css/style.css" />
+  </head>
+  <body data-page="reservas" data-base="../">
+    <div class="site-shell">
+      <header class="site-header is-solid">
+        <div class="container header-inner">
+          <a class="brand" href="../index.html" aria-label="Ir para o início">
+            <span class="brand-mark" aria-hidden="true"><span class="brand-grid"></span></span>
+            <span class="brand-text"><strong>agendei</strong><span>quadras</span></span>
+          </a>
+          <nav class="main-nav" aria-label="Navegação principal">
+            <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="Abrir menu">
+              <span></span><span></span><span></span>
+            </button>
+            <ul class="nav-menu" id="nav-menu">
+              <li><a href="../index.html">Início</a></li>
+              <li><a href="quadras.html">Quadras</a></li>
+              <li><a href="login.html">Entrar</a></li>
+            </ul>
+          </nav>
+          <div class="header-actions">
+            <span class="header-link" data-current-user>Visitante</span>
+            <a class="button button-light header-cta" href="quadras.html">Buscar novas quadras</a>
+          </div>
+        </div>
+      </header>
+
+      <main class="app-main">
+        <section class="page-hero section-orange section-pattern section-pattern-light page-hero-simple">
+          <div class="container page-title-row">
+            <div class="page-hero-copy">
+              <span class="eyebrow eyebrow-light">histórico e gestão</span>
+              <h1>Minhas Reservas</h1>
+              <p>Visualize seus horários, acompanhe o status e cancele quando necessário.</p>
+            </div>
+            <a class="button btn-secondary" href="quadras.html">Buscar novas quadras</a>
+          </div>
+        </section>
+
+        <section class="page-section section-dark section-pattern section-pattern-dark">
+          <div class="container reservation-grid" id="reservas-list"></div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <div class="container footer-grid app-split-footer">
+          <div>
+            <a class="brand footer-brand" href="../index.html" aria-label="Ir para o início">
+              <span class="brand-mark" aria-hidden="true"><span class="brand-grid"></span></span>
+              <span class="brand-text"><strong>agendei</strong><span>quadras</span></span>
+            </a>
+            <p>Agendei Quadras conecta jogadores, horários e espaços esportivos em um só lugar.</p>
+          </div>
+          <div class="footer-links-group">
+            <strong>Usuário</strong>
+            <a href="login.html">Login</a>
+            <a href="cadastro.html">Cadastro</a>
+            <a href="quadras.html">Buscar quadras</a>
+          </div>
+          <div class="footer-links-group">
+            <strong>Reservas</strong>
+            <a href="minhas-reservas.html">Minhas reservas</a>
+            <a href="agendamento.html?id=1">Agendar novamente</a>
+          </div>
+          <div class="footer-links-group">
+            <strong>Gestão</strong>
+            <a href="admin-dashboard.html">Área administrativa</a>
+            <a href="admin-relatorios.html">Relatórios</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script src="../js/prototipo.js"></script>
+  </body>
+</html>

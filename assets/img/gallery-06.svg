@@ -1,0 +1,17 @@
+<svg width="900" height="680" viewBox="0 0 900 680" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="g6" x1="66" y1="52" x2="830" y2="618" gradientUnits="userSpaceOnUse"><stop stop-color="#1F2730"/><stop offset="1" stop-color="#F2653C"/></linearGradient></defs>
+  <rect width="900" height="680" rx="48" fill="url(#g6)"/>
+  <circle cx="242" cy="272" r="44" fill="#FFF6EF"/>
+  <circle cx="378" cy="252" r="44" fill="#FFE3D7"/>
+  <circle cx="520" cy="266" r="44" fill="#FFF6EF"/>
+  <circle cx="656" cy="248" r="44" fill="#FFE3D7"/>
+  <rect x="218" y="320" width="48" height="126" rx="24" fill="#F2653C"/>
+  <rect x="354" y="300" width="48" height="126" rx="24" fill="#171C20"/>
+  <rect x="496" y="314" width="48" height="126" rx="24" fill="#F2653C"/>
+  <rect x="632" y="296" width="48" height="126" rx="24" fill="#171C20"/>
+  <path d="M218 374l-52 54M266 374l62 48M242 446l-12 84M248 446l36 84" stroke="#F2653C" stroke-width="20" stroke-linecap="round"/>
+  <path d="M354 354l-52 54M402 354l62 48M378 426l-12 84M384 426l36 84" stroke="#171C20" stroke-width="20" stroke-linecap="round"/>
+  <path d="M496 368l-52 54M544 368l62 48M520 440l-12 84M526 440l36 84" stroke="#F2653C" stroke-width="20" stroke-linecap="round"/>
+  <path d="M632 350l-52 54M680 350l62 48M656 422l-12 84M662 422l36 84" stroke="#171C20" stroke-width="20" stroke-linecap="round"/>
+  <text x="58" y="82" fill="#FFF6EF" font-family="Fredoka, Arial, sans-serif" font-size="40" font-weight="700">Equipe reunida apos a partida</text>
+</svg>

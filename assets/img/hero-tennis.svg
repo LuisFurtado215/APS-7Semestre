@@ -1,0 +1,22 @@
+<svg width="900" height="980" viewBox="0 0 900 980" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="d" x1="84" y1="60" x2="760" y2="910" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#163D61"/>
+      <stop offset="1" stop-color="#0F1A26"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="980" rx="64" fill="url(#d)"/>
+  <rect x="90" y="128" width="720" height="734" rx="42" fill="#3AA36A"/>
+  <rect x="122" y="160" width="656" height="670" rx="26" stroke="#E8F7EC" stroke-width="8"/>
+  <path d="M450 160v670M122 495h656" stroke="#E8F7EC" stroke-width="8"/>
+  <path d="M122 380h656M122 610h656" stroke="#E8F7EC" stroke-width="6"/>
+  <rect x="446" y="160" width="8" height="670" fill="#F9FEFB"/>
+  <circle cx="284" cy="292" r="52" fill="#FFFFFF"/>
+  <rect x="258" y="348" width="52" height="154" rx="24" fill="#F2653C"/>
+  <path d="M258 422l-78 78M310 422l64 54M274 500l-42 130M302 500l34 122" stroke="#F2653C" stroke-width="24" stroke-linecap="round"/>
+  <ellipse cx="604" cy="304" rx="38" ry="66" transform="rotate(-28 604 304)" stroke="#FFFFFF" stroke-width="14"/>
+  <path d="M560 370l-76 72" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="680" cy="394" r="24" fill="#FFF4A8"/>
+  <rect x="82" y="60" width="218" height="54" rx="27" fill="#FFF6EF"/>
+  <text x="120" y="96" fill="#F2653C" font-family="Nunito, Arial, sans-serif" font-size="28" font-weight="800">Tennis Court</text>
+</svg>

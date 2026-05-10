@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Painel Administrativo | Agendei Quadras</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../css/style.css" />
+  </head>
+  <body data-page="admin-dashboard" data-base="../">
+    <div class="site-shell">
+      <header class="site-header is-solid">
+        <div class="container header-inner">
+          <a class="brand" href="../index.html" aria-label="Ir para o início">
+            <span class="brand-mark" aria-hidden="true"><span class="brand-grid"></span></span>
+            <span class="brand-text"><strong>agendei</strong><span>quadras</span></span>
+          </a>
+          <nav class="main-nav" aria-label="Navegação administrativa">
+            <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="Abrir menu">
+              <span></span><span></span><span></span>
+            </button>
+            <ul class="nav-menu" id="nav-menu">
+              <li><a href="admin-dashboard.html">Dashboard</a></li>
+              <li><a href="admin-quadras.html">Quadras</a></li>
+              <li><a href="admin-horarios.html">Horários</a></li>
+              <li><a href="admin-relatorios.html">Relatórios</a></li>
+              <li><a href="#" data-logout>Sair</a></li>
+            </ul>
+          </nav>
+          <div class="header-actions">
+            <span class="header-link" data-current-user>Gestor</span>
+            <a class="button button-light header-cta" href="../index.html">Voltar ao início</a>
+          </div>
+        </div>
+      </header>
+
+      <main class="app-main">
+        <section class="page-hero section-orange section-pattern section-pattern-light">
+          <div class="container page-hero-grid">
+            <div class="page-hero-copy">
+              <span class="eyebrow eyebrow-light">gestão esportiva</span>
+              <h1>Painel Administrativo</h1>
+              <p>Visão geral das reservas, horários disponíveis e desempenho da operação.</p>
+              <span class="floating-note" id="admin-summary-note"></span>
+            </div>
+            <div class="app-card-shell">
+              <div class="hero-mini-stat">
+                <span>Próximas ações</span>
+                <strong>Cadastre quadras, ajuste horários e acompanhe relatórios.</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page-section section-dark section-pattern section-pattern-dark">
+          <div class="container admin-grid">
+            <div class="stats-grid" id="admin-metrics"></div>
+
+            <div class="quick-links-grid">
+              <a class="app-card quick-link-card" href="admin-quadras.html">
+                <span class="eyebrow eyebrow-dark">ação rápida</span>
+                <h3>Cadastrar nova quadra</h3>
+                <p>Abra o formulário de gestão e adicione novos espaços.</p>
+              </a>
+              <a class="app-card quick-link-card" href="admin-horarios.html">
+                <span class="eyebrow eyebrow-dark">ação rápida</span>
+                <h3>Gerenciar horários</h3>
+                <p>Bloqueie, libere ou consulte horários reservados.</p>
+              </a>
+              <a class="app-card quick-link-card" href="admin-relatorios.html">
+                <span class="eyebrow eyebrow-dark">ação rápida</span>
+                <h3>Ver relatórios</h3>
+                <p>Acompanhe métricas e desempenho do mês.</p>
+              </a>
+            </div>
+
+            <div class="app-grid two-columns">
+              <article class="app-card chart-card">
+                <div class="page-title-row light-surface">
+                  <div>
+                    <span class="eyebrow eyebrow-dark">gráfico visual</span>
+                    <h3>Reservas por modalidade</h3>
+                  </div>
+                </div>
+                <div class="chart-rows" id="admin-chart"></div>
+              </article>
+
+              <article class="app-card table-card">
+                <div class="page-title-row light-surface">
+                  <div>
+                    <span class="eyebrow eyebrow-dark">próximas reservas</span>
+                    <h3>Agenda em destaque</h3>
+                  </div>
+                </div>
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Cliente</th>
+                        <th>Quadra</th>
+                        <th>Modalidade</th>
+                        <th>Data</th>
+                        <th>Horário</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="admin-upcoming"></tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <div class="container footer-grid app-split-footer">
+          <div>
+            <a class="brand footer-brand" href="../index.html" aria-label="Ir para o início">
+              <span class="brand-mark" aria-hidden="true"><span class="brand-grid"></span></span>
+              <span class="brand-text"><strong>agendei</strong><span>quadras</span></span>
+            </a>
+            <p>Agendei Quadras conecta jogadores, horários e espaços esportivos em um só lugar.</p>
+          </div>
+          <div class="footer-links-group">
+            <strong>Dashboard</strong>
+            <a href="admin-dashboard.html">Visão geral</a>
+            <a href="admin-quadras.html">Gerenciar quadras</a>
+          </div>
+          <div class="footer-links-group">
+            <strong>Operação</strong>
+            <a href="admin-horarios.html">Gerenciar horários</a>
+            <a href="admin-relatorios.html">Relatórios</a>
+          </div>
+          <div class="footer-links-group">
+            <strong>Site</strong>
+            <a href="../index.html">Landing page</a>
+            <a href="quadras.html">Área do cliente</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script src="../js/prototipo.js"></script>
+  </body>
+</html>

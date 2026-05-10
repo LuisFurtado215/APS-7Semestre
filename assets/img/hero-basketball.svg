@@ -1,0 +1,21 @@
+<svg width="900" height="760" viewBox="0 0 900 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="c" x1="60" y1="44" x2="760" y2="724" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4D5BFF"/>
+      <stop offset="1" stop-color="#171C20"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="760" rx="64" fill="url(#c)"/>
+  <rect x="80" y="94" width="740" height="572" rx="44" fill="#F7D089"/>
+  <path d="M450 94v572M80 380h740" stroke="#B66529" stroke-width="8"/>
+  <circle cx="450" cy="380" r="82" stroke="#B66529" stroke-width="8"/>
+  <path d="M820 290h-98M820 470h-98" stroke="#B66529" stroke-width="8"/>
+  <path d="M742 246h48v268h-48" stroke="#B66529" stroke-width="8"/>
+  <circle cx="316" cy="220" r="48" fill="#F2653C"/>
+  <rect x="288" y="272" width="58" height="150" rx="28" fill="#FFF4EA"/>
+  <path d="M288 336l-74 82M346 332l92 70M306 420l-12 124M334 420l60 118" stroke="#FFF4EA" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="548" cy="196" r="28" fill="#F2653C"/>
+  <path d="M534 196h28M548 182c4 4 6 9 6 14 0 6-2 11-6 14M548 182c-4 4-6 9-6 14 0 6 2 11 6 14" stroke="#171C20" stroke-width="4" stroke-linecap="round"/>
+  <rect x="72" y="48" width="258" height="56" rx="28" fill="#FFFFFF"/>
+  <text x="112" y="84" fill="#F2653C" font-family="Nunito, Arial, sans-serif" font-size="30" font-weight="800">Basket Session</text>
+</svg>

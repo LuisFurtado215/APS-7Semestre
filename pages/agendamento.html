@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agendar Horário | Agendei Quadras</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../css/style.css" />
+  </head>
+  <body data-page="agendamento" data-base="../">
+    <div class="site-shell">
+      <header class="site-header is-solid">
+        <div class="container header-inner">
+          <a class="brand" href="../index.html" aria-label="Ir para o início">
+            <span class="brand-mark" aria-hidden="true"><span class="brand-grid"></span></span>
+            <span class="brand-text"><strong>agendei</strong><span>quadras</span></span>
+          </a>
+          <nav class="main-nav" aria-label="Navegação principal">
+            <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="Abrir menu">
+              <span></span><span></span><span></span>
+            </button>
+            <ul class="nav-menu" id="nav-menu">
+              <li><a href="../index.html">Início</a></li>
+              <li><a href="quadras.html">Quadras</a></li>
+              <li><a href="minhas-reservas.html">Minhas Reservas</a></li>
+            </ul>
+          </nav>
+          <div class="header-actions">
+            <span class="header-link" data-current-user>Visitante</span>
+            <a class="button button-light header-cta" href="minhas-reservas.html">Minhas Reservas</a>
+          </div>
+        </div>
+      </header>
+
+      <main class="app-main">
+        <section class="page-hero section-orange section-pattern section-pattern-light page-hero-simple">
+          <div class="container page-hero-copy">
+            <span class="eyebrow eyebrow-light">reserva online</span>
+            <h1>Agendar horário</h1>
+            <p>Escolha a data, selecione um horário livre e confirme sua reserva.</p>
+          </div>
+        </section>
+
+        <section class="page-section section-dark section-pattern section-pattern-dark">
+          <div class="container app-grid">
+            <div id="agendamento-quadra"></div>
+
+            <div class="booking-layout">
+              <form class="form-card" id="agendamento-form">
+                <div class="form-grid">
+                  <label>
+                    Data da reserva
+                    <input id="booking-date" type="date" required />
+                  </label>
+                  <label>
+                    Modalidade
+                    <select id="booking-modalidade">
+                      <option>Futebol</option>
+                      <option>Vôlei</option>
+                      <option>Beach Tennis</option>
+                      <option>Tênis</option>
+                    </select>
+                  </label>
+                  <label>
+                    Quantidade de jogadores
+                    <input type="number" name="quantidadeJogadores" min="1" max="30" placeholder="Ex.: 8" />
+                  </label>
+                  <label class="full-width">
+                    Observações
+                    <textarea name="observacoes" rows="4" placeholder="Informações extras para a reserva"></textarea>
+                  </label>
+                </div>
+
+                <div class="page-title-row light-surface section-title-spacer">
+                  <div>
+                    <span class="eyebrow eyebrow-dark">HORÁRIOS</span>
+                    <h3>Escolha um horário disponível</h3>
+                  </div>
+                </div>
+
+                <div class="time-grid" id="schedule-grid"></div>
+
+                <div class="form-actions">
+                  <button class="button btn-primary" type="submit">Confirmar agendamento</button>
+                </div>
+              </form>
+
+              <aside class="app-card recap-card">
+                <span class="eyebrow eyebrow-dark">RESUMO</span>
+                <h3>Sua reserva</h3>
+                <div class="recap-grid" id="booking-recap"></div>
+              </aside>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <div class="container footer-grid app-split-footer">
+          <div>
+            <a class="brand footer-brand" href="../index.html" aria-label="Ir para o início">
+              <span class="brand-mark" aria-hidden="true"><span class="brand-grid"></span></span>
+              <span class="brand-text"><strong>agendei</strong><span>quadras</span></span>
+            </a>
+            <p>Agendei Quadras conecta jogadores, horários e espaços esportivos em um só lugar.</p>
+          </div>
+          <div class="footer-links-group">
+            <strong>Navegação</strong>
+            <a href="quadras.html">Buscar quadras</a>
+            <a href="minhas-reservas.html">Minhas reservas</a>
+          </div>
+          <div class="footer-links-group">
+            <strong>Acesso</strong>
+            <a href="login.html">Login</a>
+            <a href="cadastro.html">Cadastro</a>
+          </div>
+          <div class="footer-links-group">
+            <strong>Gestão</strong>
+            <a href="admin-dashboard.html">Área administrativa</a>
+            <a href="admin-relatorios.html">Relatórios</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script src="../js/prototipo.js"></script>
+  </body>
+</html>

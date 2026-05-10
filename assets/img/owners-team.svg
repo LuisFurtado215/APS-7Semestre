@@ -1,0 +1,24 @@
+<svg width="1200" height="860" viewBox="0 0 1200 860" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="e" x1="82" y1="60" x2="1060" y2="792" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF7F1"/>
+      <stop offset="1" stop-color="#FFD7CA"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="860" rx="56" fill="url(#e)"/>
+  <circle cx="896" cy="158" r="94" fill="#FFEDE5"/>
+  <circle cx="220" cy="188" r="68" fill="#FFF2EB"/>
+  <rect x="598" y="122" width="360" height="546" rx="34" fill="#171C20"/>
+  <rect x="624" y="154" width="308" height="490" rx="24" fill="#FFF6EF"/>
+  <path d="M666 228h220M666 290h220M666 352h170" stroke="#FFD2C0" stroke-width="18" stroke-linecap="round"/>
+  <rect x="666" y="412" width="226" height="158" rx="22" fill="#F2653C"/>
+  <path d="M779 412v158M666 491h226" stroke="#FFF6EF" stroke-width="8"/>
+  <circle cx="352" cy="286" r="74" fill="#171C20"/>
+  <rect x="306" y="364" width="92" height="230" rx="42" fill="#F2653C"/>
+  <path d="M306 444l-118 54M398 440l84-74M330 594l-60 168M374 594l86 148" stroke="#F2653C" stroke-width="34" stroke-linecap="round"/>
+  <circle cx="474" cy="234" r="56" fill="#FFFFFF"/>
+  <rect x="438" y="290" width="74" height="216" rx="34" fill="#171C20"/>
+  <path d="M438 368l-92 88M512 364l94 58M456 506l-34 156M494 506l66 148" stroke="#171C20" stroke-width="28" stroke-linecap="round"/>
+  <rect x="128" y="652" width="306" height="74" rx="37" fill="#FFFFFF"/>
+  <text x="180" y="700" fill="#F2653C" font-family="Nunito, Arial, sans-serif" font-size="38" font-weight="800">Gestao da quadra</text>
+</svg>

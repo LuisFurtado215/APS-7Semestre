@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quadras Disponíveis | Agendei Quadras</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../css/style.css" />
+  </head>
+  <body data-page="quadras" data-base="../">
+    <div class="site-shell">
+      <header class="site-header is-solid">
+        <div class="container header-inner">
+          <a class="brand" href="../index.html" aria-label="Ir para o início">
+            <span class="brand-mark" aria-hidden="true"><span class="brand-grid"></span></span>
+            <span class="brand-text"><strong>agendei</strong><span>quadras</span></span>
+          </a>
+
+          <nav class="main-nav" aria-label="Navegação principal">
+            <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="Abrir menu">
+              <span></span><span></span><span></span>
+            </button>
+            <ul class="nav-menu" id="nav-menu">
+              <li><a href="../index.html">Início</a></li>
+              <li><a href="quadras.html">Quadras</a></li>
+              <li><a href="minhas-reservas.html">Minhas Reservas</a></li>
+              <li><a href="login.html">Entrar</a></li>
+            </ul>
+          </nav>
+
+          <div class="header-actions">
+            <span class="header-link" data-current-user>Visitante</span>
+            <a class="button button-light header-cta" href="minhas-reservas.html">Minhas Reservas</a>
+          </div>
+        </div>
+      </header>
+
+      <main class="app-main">
+        <section class="page-hero section-orange section-pattern section-pattern-light">
+          <div class="container page-hero-grid">
+            <div class="page-hero-copy">
+              <span class="eyebrow eyebrow-light">busca esportiva</span>
+              <h1>Quadras disponíveis em Ribeirão Preto</h1>
+              <p>
+                Explore as quadras disponíveis e filtre por modalidade,
+                bairro, data ou faixa de preço.
+              </p>
+            </div>
+
+            <div class="app-card-shell">
+              <div class="hero-mini-stat">
+                <span>Modalidades disponíveis</span>
+                <strong>Futebol, Vôlei, Beach Tennis e Tênis</strong>
+              </div>
+              <div class="hero-mini-stat">
+                <span>Base principal</span>
+                <strong>Ribeirão Preto/SP</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page-section section-dark section-pattern section-pattern-dark">
+          <div class="container">
+            <div class="page-title-row">
+              <div>
+                <span class="eyebrow">LISTAGEM</span>
+                <h2>Escolha sua próxima quadra</h2>
+              </div>
+              <p class="floating-note" id="city-notice"></p>
+            </div>
+
+            <div class="results-layout">
+              <aside class="form-card toolbar-card">
+                <h3>Filtros rápidos</h3>
+                <div class="toolbar-grid">
+                  <label class="toolbar-field">
+                    Busca
+                    <input id="filtro-busca" type="search" placeholder="Busque por nome, bairro ou modalidade" />
+                  </label>
+                  <label class="toolbar-field">
+                    Modalidade
+                    <select id="filtro-modalidade">
+                      <option>Todos</option>
+                      <option>Futebol</option>
+                      <option>Vôlei</option>
+                      <option>Beach Tennis</option>
+                      <option>Tênis</option>
+                    </select>
+                  </label>
+                  <label class="toolbar-field">
+                    Bairro
+                    <select id="filtro-bairro">
+                      <option>Todos</option>
+                      <option>Jardim Irajá</option>
+                      <option>Centro</option>
+                      <option>Ribeirânia</option>
+                      <option>Bonfim Paulista</option>
+                      <option>Nova Aliança</option>
+                    </select>
+                  </label>
+                  <label class="toolbar-field">
+                    Data
+                    <input id="filtro-data" type="date" />
+                  </label>
+                  <label class="toolbar-field">
+                    Faixa de preço
+                    <select id="filtro-preco">
+                      <option value="Todos">Todos</option>
+                      <option value="ate-80">Até R$ 80</option>
+                      <option value="81-100">R$ 81 a R$ 100</option>
+                      <option value="101-plus">Acima de R$ 100</option>
+                    </select>
+                  </label>
+                </div>
+              </aside>
+
+              <div class="listing-grid" id="quadras-list"></div>
+            </div>
+
+            <div class="empty-state" id="quadras-empty" hidden>
+              Nenhuma quadra encontrada para os filtros selecionados.
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <div class="container footer-grid app-split-footer">
+          <div>
+            <a class="brand footer-brand" href="../index.html" aria-label="Ir para o início">
+              <span class="brand-mark" aria-hidden="true"><span class="brand-grid"></span></span>
+              <span class="brand-text"><strong>agendei</strong><span>quadras</span></span>
+            </a>
+            <p>Agendei Quadras conecta jogadores, horários e espaços esportivos em um só lugar.</p>
+          </div>
+          <div class="footer-links-group">
+            <strong>Usuário</strong>
+            <a href="login.html">Login</a>
+            <a href="cadastro.html">Cadastro</a>
+            <a href="minhas-reservas.html">Minhas reservas</a>
+          </div>
+          <div class="footer-links-group">
+            <strong>Busca</strong>
+            <a href="quadras.html">Buscar quadras</a>
+            <a href="agendamento.html?id=1">Agendar horário</a>
+          </div>
+          <div class="footer-links-group">
+            <strong>Gestão</strong>
+            <a href="admin-dashboard.html">Área administrativa</a>
+            <a href="admin-relatorios.html">Relatórios</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script src="../js/prototipo.js"></script>
+  </body>
+</html>

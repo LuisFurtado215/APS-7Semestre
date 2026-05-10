@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gerenciar Quadras | Agendei Quadras</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../css/style.css" />
+  </head>
+  <body data-page="admin-quadras" data-base="../">
+    <div class="site-shell">
+      <header class="site-header is-solid">
+        <div class="container header-inner">
+          <a class="brand" href="../index.html" aria-label="Ir para o início">
+            <span class="brand-mark" aria-hidden="true"><span class="brand-grid"></span></span>
+            <span class="brand-text"><strong>agendei</strong><span>quadras</span></span>
+          </a>
+          <nav class="main-nav" aria-label="Navegação administrativa">
+            <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="Abrir menu">
+              <span></span><span></span><span></span>
+            </button>
+            <ul class="nav-menu" id="nav-menu">
+              <li><a href="admin-dashboard.html">Dashboard</a></li>
+              <li><a href="admin-quadras.html">Quadras</a></li>
+              <li><a href="admin-horarios.html">Horários</a></li>
+              <li><a href="admin-relatorios.html">Relatórios</a></li>
+              <li><a href="#" data-logout>Sair</a></li>
+            </ul>
+          </nav>
+          <div class="header-actions">
+            <span class="header-link" data-current-user>Gestor</span>
+            <a class="button button-light header-cta" href="admin-dashboard.html">Voltar ao painel</a>
+          </div>
+        </div>
+      </header>
+
+      <main class="app-main">
+        <section class="page-hero section-orange section-pattern section-pattern-light page-hero-simple">
+          <div class="container page-hero-copy">
+            <span class="eyebrow eyebrow-light">cadastro e gestão</span>
+            <h1>Gerenciar Quadras</h1>
+            <p>Cadastre novos espaços, edite informações ou inative quadras da plataforma.</p>
+          </div>
+        </section>
+
+        <section class="page-section section-dark section-pattern section-pattern-dark">
+          <div class="container admin-grid">
+            <form class="form-card" id="admin-court-form">
+              <div class="page-title-row light-surface">
+                <div>
+                  <span class="eyebrow eyebrow-dark">formulário</span>
+                  <h3 id="admin-court-form-title">Cadastrar nova quadra</h3>
+                </div>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Nome da quadra
+                  <input type="text" name="nome" required />
+                </label>
+                <label>
+                  Modalidade
+                  <select name="modalidade" required>
+                    <option value="">Selecione</option>
+                    <option>Futebol</option>
+                    <option>Vôlei</option>
+                    <option>Beach Tennis</option>
+                    <option>Tênis</option>
+                  </select>
+                </label>
+                <label>
+                  Bairro
+                  <select name="bairro" required>
+                    <option value="">Selecione</option>
+                    <option>Jardim Irajá</option>
+                    <option>Centro</option>
+                    <option>Ribeirânia</option>
+                    <option>Bonfim Paulista</option>
+                    <option>Nova Aliança</option>
+                  </select>
+                </label>
+                <label>
+                  Endereço
+                  <input type="text" name="endereco" />
+                </label>
+                <label>
+                  Preço por hora
+                  <input type="number" name="preco" min="0" step="5" />
+                </label>
+                <label>
+                  Horário de abertura
+                  <input type="time" name="abertura" />
+                </label>
+                <label>
+                  Horário de fechamento
+                  <input type="time" name="fechamento" />
+                </label>
+                <label>
+                  Status
+                  <select name="status">
+                    <option>Ativa</option>
+                    <option>Inativa</option>
+                  </select>
+                </label>
+                <div class="full-width">
+                  <span class="detail-label">Estrutura disponível</span>
+                  <div class="check-grid">
+                    <label class="check-item"><input type="checkbox" name="estrutura" value="Iluminação" />Iluminação</label>
+                    <label class="check-item"><input type="checkbox" name="estrutura" value="Vestiário" />Vestiário</label>
+                    <label class="check-item"><input type="checkbox" name="estrutura" value="Estacionamento" />Estacionamento</label>
+                    <label class="check-item"><input type="checkbox" name="estrutura" value="Bebedouro" />Bebedouro</label>
+                    <label class="check-item"><input type="checkbox" name="estrutura" value="Lanchonete" />Lanchonete</label>
+                    <label class="check-item"><input type="checkbox" name="estrutura" value="Quadra coberta" />Quadra coberta</label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button class="button btn-primary" type="submit">Salvar quadra</button>
+              </div>
+            </form>
+
+            <article class="app-card table-card">
+              <div class="page-title-row light-surface">
+                <div>
+                  <span class="eyebrow eyebrow-dark">cadastros</span>
+                  <h3>Quadras registradas</h3>
+                </div>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>Modalidade</th>
+                      <th>Bairro</th>
+                      <th>Preço</th>
+                      <th>Status</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-courts-table"></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <div class="container footer-grid app-split-footer">
+          <div>
+            <a class="brand footer-brand" href="../index.html" aria-label="Ir para o início">
+              <span class="brand-mark" aria-hidden="true"><span class="brand-grid"></span></span>
+              <span class="brand-text"><strong>agendei</strong><span>quadras</span></span>
+            </a>
+            <p>Agendei Quadras conecta jogadores, horários e espaços esportivos em um só lugar.</p>
+          </div>
+          <div class="footer-links-group">
+            <strong>Dashboard</strong>
+            <a href="admin-dashboard.html">Visão geral</a>
+            <a href="admin-horarios.html">Horários</a>
+          </div>
+          <div class="footer-links-group">
+            <strong>Gestão</strong>
+            <a href="admin-quadras.html">Quadras</a>
+            <a href="admin-relatorios.html">Relatórios</a>
+          </div>
+          <div class="footer-links-group">
+            <strong>Site</strong>
+            <a href="../index.html">Landing page</a>
+            <a href="quadras.html">Área do cliente</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script src="../js/prototipo.js"></script>
+  </body>
+</html>

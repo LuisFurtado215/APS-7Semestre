@@ -1,0 +1,12 @@
+<svg width="900" height="680" viewBox="0 0 900 680" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="680" rx="48" fill="#194A33"/>
+  <rect x="106" y="90" width="688" height="500" rx="34" fill="#39A16A"/>
+  <rect x="134" y="118" width="632" height="444" rx="22" stroke="#F3FFF7" stroke-width="8"/>
+  <path d="M450 118v444M134 340h632M134 238h632M134 442h632" stroke="#F3FFF7" stroke-width="6"/>
+  <ellipse cx="290" cy="258" rx="40" ry="70" transform="rotate(-24 290 258)" stroke="#FFF6EF" stroke-width="14"/>
+  <path d="M248 328l-72 74" stroke="#FFF6EF" stroke-width="18" stroke-linecap="round"/>
+  <ellipse cx="610" cy="258" rx="40" ry="70" transform="rotate(24 610 258)" stroke="#FFF6EF" stroke-width="14"/>
+  <path d="M652 328l72 74" stroke="#FFF6EF" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="450" cy="236" r="22" fill="#FFF29A"/>
+  <text x="58" y="76" fill="#FFF6EF" font-family="Fredoka, Arial, sans-serif" font-size="40" font-weight="700">Aula de tenis em dupla</text>
+</svg>

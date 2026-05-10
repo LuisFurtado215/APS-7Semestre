@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Entrar | Agendei Quadras</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../css/style.css" />
+  </head>
+  <body data-page="login" data-base="../">
+    <div class="site-shell">
+      <header class="site-header is-solid">
+        <div class="container header-inner">
+          <a class="brand" href="../index.html" aria-label="Ir para o início">
+            <span class="brand-mark" aria-hidden="true"><span class="brand-grid"></span></span>
+            <span class="brand-text"><strong>agendei</strong><span>quadras</span></span>
+          </a>
+
+          <nav class="main-nav" aria-label="Navegação principal">
+            <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="Abrir menu">
+              <span></span><span></span><span></span>
+            </button>
+            <ul class="nav-menu" id="nav-menu">
+              <li><a href="../index.html">Início</a></li>
+              <li><a href="quadras.html">Quadras</a></li>
+              <li><a href="cadastro.html">Cadastro</a></li>
+              <li><a href="minhas-reservas.html">Minhas Reservas</a></li>
+            </ul>
+          </nav>
+
+          <div class="header-actions">
+            <span class="header-link" data-current-user>Visitante</span>
+            <a class="button button-light header-cta" href="cadastro.html" data-signup-link>Criar conta</a>
+          </div>
+        </div>
+      </header>
+
+      <main class="app-main">
+        <section class="page-hero section-orange section-pattern section-pattern-light">
+          <div class="container auth-wrapper">
+            <div class="page-hero-copy auth-intro">
+              <span class="eyebrow eyebrow-light">acesso ao sistema</span>
+              <h1>Entrar no Sistema</h1>
+              <p>
+                Escolha o tipo de acesso e entre como cliente ou proprietário
+                para gerenciar reservas e quadras.
+              </p>
+            </div>
+
+            <div class="form-card auth-card single-column-form">
+              <form id="login-form" class="form-grid" novalidate>
+                <input type="hidden" id="access-role" value="cliente" />
+
+                <div class="access-options full-width">
+                  <button class="access-option is-active" type="button" data-access-role="cliente">
+                    Cliente
+                  </button>
+                  <button class="access-option" type="button" data-access-role="admin">
+                    Proprietário
+                  </button>
+                </div>
+
+                <label class="full-width">
+                  E-mail
+                  <input type="email" name="email" placeholder="voce@exemplo.com" required />
+                </label>
+
+                <label class="full-width">
+                  Senha
+                  <input type="password" name="senha" placeholder="Digite sua senha" required />
+                </label>
+
+                <div class="auth-links full-width">
+                  <a href="cadastro.html" data-signup-link>Criar conta</a>
+                  <a href="#" data-forgot-password>Esqueci minha senha</a>
+                </div>
+
+                <button class="button btn-primary full-width" type="submit">Entrar</button>
+                <p class="form-message full-width" id="login-message" aria-live="polite"></p>
+              </form>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <div class="container footer-grid app-split-footer">
+          <div>
+            <a class="brand footer-brand" href="../index.html" aria-label="Ir para o início">
+              <span class="brand-mark" aria-hidden="true"><span class="brand-grid"></span></span>
+              <span class="brand-text"><strong>agendei</strong><span>quadras</span></span>
+            </a>
+            <p>Agendei Quadras conecta jogadores, horários e espaços esportivos em um só lugar.</p>
+          </div>
+
+          <div class="footer-links-group">
+            <strong>Acesso</strong>
+            <a href="login.html">Login</a>
+            <a href="cadastro.html">Cadastro</a>
+          </div>
+
+          <div class="footer-links-group">
+            <strong>Plataforma</strong>
+            <a href="quadras.html">Buscar quadras</a>
+            <a href="admin-dashboard.html">Área administrativa</a>
+          </div>
+
+          <div class="footer-links-group">
+            <strong>Landing</strong>
+            <a href="../index.html">Página inicial</a>
+            <a href="quadras.html">Buscar quadras</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script src="../js/prototipo.js"></script>
+  </body>
+</html>
