@@ -27,12 +27,13 @@
             <ul class="nav-menu" id="nav-menu">
               <li><a href="../index.html">Início</a></li>
               <li><a href="quadras.html">Quadras</a></li>
-              <li><a href="minhas-reservas.html">Minhas Reservas</a></li>
+              <li data-auth-only hidden><a href="minhas-reservas.html">Minhas Reservas</a></li>
+              <li class="nav-mobile-only" data-guest-only><a href="login.html">Entrar</a></li>
             </ul>
           </nav>
           <div class="header-actions">
             <span class="header-link" data-current-user>Visitante</span>
-            <a class="button button-light header-cta pill-cta" href="login.html">Entrar</a>
+            <a class="button button-light header-cta pill-cta" href="login.html" data-header-cta>Entrar</a>
           </div>
         </div>
       </header>

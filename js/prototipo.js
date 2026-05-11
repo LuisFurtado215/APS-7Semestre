@@ -542,35 +542,41 @@
   };
 
   const showBookingAuthModal = (courtId) => {
-    const court = getCourtById(courtId);
-
     showModal({
-      title: court ? `Reservar ${court.nome}` : "Reservar quadra",
+      title: "Entre para reservar",
       html: `
-        <p>Para reservar uma quadra, entre ou crie sua conta.</p>
+        <p>Você pode visualizar os detalhes da quadra, mas precisa entrar ou criar uma conta para confirmar um horário.</p>
       `,
       actions: [
         {
-          label: "Entrar",
+          label: "ENTRAR",
           variant: "primary",
           className: "pill-cta",
           href: pageUrl("login.html"),
         },
         {
-          label: "Criar conta",
+          label: "CRIAR CONTA",
           variant: "secondary",
           href: pageUrl("cadastro.html"),
+        },
+        {
+          label: "CONTINUAR VENDO DETALHES",
+          variant: "secondary",
+          className: "modal-keep-button",
+          onClick: closeSharedModal,
         },
       ],
     });
   };
 
-  const buildBookingAction = (court) => {
+  const buildBookingAction = (court, label = "Agendar") => {
+    const actionLabel = label || "Agendar";
+
     if (getCurrentUser()) {
-      return `<a class="button btn-primary" href="${pageUrl(`pages/agendamento.html?id=${court.id}`)}">Agendar</a>`;
+      return `<a class="button btn-primary" href="${pageUrl(`pages/agendamento.html?id=${court.id}`)}">${actionLabel}</a>`;
     }
 
-    return `<button class="button btn-primary" type="button" data-booking-gate="${court.id}">Agendar</button>`;
+    return `<button class="button btn-primary" type="button" data-booking-gate="${court.id}">${actionLabel}</button>`;
   };
 
   const saveScheduleOverrides = (value) => {
@@ -777,10 +783,42 @@
     });
   };
 
-  const buildFacilityBadges = (items) =>
-    items
+  const getUniqueTags = (items = []) => {
+    const seen = new Set();
+
+    return (Array.isArray(items) ? items : []).reduce((tags, item) => {
+      const label = String(item || "").trim();
+      const key = slugifyText(label);
+
+      if (!label || seen.has(key)) {
+        return tags;
+      }
+
+      seen.add(key);
+      tags.push(label);
+      return tags;
+    }, []);
+  };
+
+  const buildFacilityBadges = (items = []) =>
+    getUniqueTags(items)
       .map((item) => `<span class="tag-pill">${item}</span>`)
       .join("");
+
+  const getDetailFacilities = (court) => {
+    const extrasByModality = {
+      Futebol: ["Bebedouro", "Estacionamento", "Vestiário", "Churrasqueira"],
+      Vôlei: ["Iluminação", "Bebedouro", "Estacionamento", "Vestiário"],
+      "Beach Tennis": ["Iluminação", "Bebedouro", "Estacionamento", "Vestiário"],
+      Tênis: ["Iluminação", "Bebedouro", "Estacionamento", "Vestiário"],
+      default: ["Iluminação", "Bebedouro", "Estacionamento"],
+    };
+
+    return getUniqueTags([
+      ...(court?.estrutura || []),
+      ...(extrasByModality[court?.modalidade] || extrasByModality.default),
+    ]);
+  };
 
   const initLoginPage = () => {
     const form = document.getElementById("login-form");
@@ -1178,54 +1216,118 @@
       return;
     }
 
+    const detailFacilities = getDetailFacilities(court);
+    const detailTimeSlots = [
+      "08:00",
+      "09:00",
+      "10:00",
+      "14:00",
+      "15:00",
+      "18:00",
+      "19:00",
+      "20:00",
+    ];
+
     container.innerHTML = `
       <div class="detail-hero">
-        <img src="${assetUrl(court.imagem)}" alt="${court.nome}" />
+        <div class="detail-media-panel app-card">
+          <img class="detail-court-image" src="${assetUrl(court.imagem)}" alt="${court.nome}" />
+          <div class="detail-quick-facts" aria-label="Resumo rápido da quadra">
+            <span>
+              <strong>Modalidade</strong>
+              ${court.modalidade}
+            </span>
+            <span>
+              <strong>Bairro</strong>
+              ${court.bairro}
+            </span>
+            <span>
+              <strong>Preço</strong>
+              ${formatCurrency(court.preco)}/h
+            </span>
+          </div>
+        </div>
         <div class="detail-summary app-card">
-          <span class="eyebrow eyebrow-dark">Ribeirão Preto/SP</span>
-          <h1>${court.nome}</h1>
-          <p class="detail-subtitle">${court.modalidade} • ${court.bairro}</p>
+          <span class="detail-location">RIBEIRÃO PRETO/SP</span>
+          <div class="detail-title-block">
+            <h1>${court.nome}</h1>
+            <p class="detail-subtitle">${court.modalidade} • ${court.bairro}</p>
+          </div>
           <div class="rating-box">
             <strong>${court.avaliacao.toFixed(1)} estrelas</strong>
             <span>Baseado em 123 avaliações</span>
           </div>
           <div class="detail-grid">
-            <div>
+            <article class="detail-info-card">
               <span class="detail-label">Endereço</span>
               <p>${court.endereco}</p>
-            </div>
-            <div>
+            </article>
+            <article class="detail-info-card">
               <span class="detail-label">Funcionamento</span>
               <p>${court.horarioAbertura} às ${court.horarioFechamento}</p>
-            </div>
-            <div>
+            </article>
+            <article class="detail-info-card detail-price-card">
               <span class="detail-label">Preço</span>
               <p>${formatCurrency(court.preco)} por hora</p>
-            </div>
+            </article>
           </div>
-          <p>${court.descricao}</p>
-          <div class="tag-row">${buildFacilityBadges([
-            ...court.estrutura,
-            "Bebedouro",
-            "Iluminação",
-          ])}</div>
-          <div class="rules-card">
+          <section class="detail-section">
+            <h3>Descrição</h3>
+            <p class="detail-description">${court.descricao}</p>
+          </section>
+          <section class="detail-section facility-section">
+            <h3>Estrutura disponível</h3>
+            <div class="tag-row detail-tag-row">${buildFacilityBadges(detailFacilities)}</div>
+          </section>
+          <section class="rules-card detail-section">
             <h3>Regras da quadra</h3>
             <ul class="info-list">
               <li>Tolerância de atraso de 10 minutos.</li>
               <li>Cancelamento permitido com até 2 horas de antecedência.</li>
               <li>Uso obrigatório de calçado adequado.</li>
             </ul>
-          </div>
-          <div class="inline-actions">
-            ${buildBookingAction(court)}
-            <a class="button btn-secondary" href="${pageUrl("pages/quadras.html")}">Voltar para quadras</a>
+          </section>
+          <section class="detail-section schedule-preview">
+            <div class="detail-section-heading">
+              <h3>Horários disponíveis</h3>
+              <p>Escolha um horário para continuar com a reserva.</p>
+            </div>
+            <div class="detail-time-grid" aria-label="Horários disponíveis">
+              ${detailTimeSlots
+                .map(
+                  (time) => `
+                    <button class="time-slot detail-time-chip is-available" type="button" data-detail-time="${time}" aria-pressed="false">
+                      ${time}
+                    </button>
+                  `
+                )
+                .join("")}
+            </div>
+            <p class="booking-note">Para confirmar um horário, é necessário entrar ou criar uma conta.</p>
+          </section>
+          <div class="inline-actions detail-actions">
+            ${buildBookingAction(court, "Agendar horário")}
+            <a class="button btn-secondary" href="${pageUrl("pages/quadras.html")}">Ver outras quadras</a>
           </div>
         </div>
       </div>
     `;
 
     container.addEventListener("click", (event) => {
+      const timeTrigger = event.target.closest("[data-detail-time]");
+
+      if (timeTrigger) {
+        container.querySelectorAll("[data-detail-time]").forEach((button) => {
+          const isSelected = button === timeTrigger;
+
+          button.classList.toggle("is-selected", isSelected);
+          button.setAttribute("aria-pressed", String(isSelected));
+        });
+
+        state.selectedBookingTime = timeTrigger.dataset.detailTime || null;
+        return;
+      }
+
       const trigger = event.target.closest("[data-booking-gate]");
 
       if (!trigger) {
