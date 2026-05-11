@@ -54,7 +54,7 @@
             <div class="booking-layout">
               <form class="form-card" id="agendamento-form">
                 <div class="form-grid">
-                  <label>
+                  <label class="full-width">
                     Data da reserva
                     <input id="booking-date" type="date" required />
                   </label>
@@ -68,6 +68,14 @@
                     </select>
                   </label>
                   <label>
+                    Horário inicial
+                    <div id="booking-time" class="time-picker-shell"></div>
+                  </label>
+                  <label>
+                    Até
+                    <div id="booking-end" class="time-picker-shell"></div>
+                  </label>
+                  <label>
                     Quantidade de jogadores
                     <input type="number" name="quantidadeJogadores" min="1" max="30" placeholder="Ex.: 8" />
                   </label>
@@ -76,15 +84,6 @@
                     <textarea name="observacoes" rows="4" placeholder="Informações extras para a reserva"></textarea>
                   </label>
                 </div>
-
-                <div class="page-title-row light-surface section-title-spacer">
-                  <div>
-                    <span class="eyebrow eyebrow-dark">HORÁRIOS</span>
-                    <h3>Escolha um horário disponível</h3>
-                  </div>
-                </div>
-
-                <div class="time-grid" id="schedule-grid"></div>
 
                 <div class="form-actions">
                   <button class="button btn-primary" type="submit">Confirmar agendamento</button>

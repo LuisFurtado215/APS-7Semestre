@@ -19,44 +19,46 @@
   };
 
   const TIME_SLOTS = [
-    "08:00",
-    "09:00",
-    "10:00",
-    "11:00",
+    "08:30",
+    "09:30",
+    "10:30",
+    "11:30",
     "14:00",
-    "15:00",
-    "16:00",
-    "17:00",
+    "15:30",
+    "16:30",
+    "17:30",
     "18:00",
-    "19:00",
-    "20:00",
+    "18:30",
+    "19:30",
+    "20:30",
     "21:00",
   ];
 
   const MODALITIES = ["Futebol", "Vôlei", "Beach Tennis", "Tênis"];
 
   const DEFAULT_SCHEDULE_TEMPLATE = {
-    "08:00": { status: "Disponível" },
-    "09:00": { status: "Disponível" },
-    "10:00": { status: "Disponível" },
-    "11:00": {
+    "08:30": { status: "Disponível" },
+    "09:30": { status: "Disponível" },
+    "10:30": { status: "Disponível" },
+    "11:30": {
       status: "Reservado",
       cliente: "Carlos Mendes",
       telefone: "(16) 99999-0101",
       modalidade: "Beach Tennis",
     },
     "14:00": { status: "Disponível" },
-    "15:00": { status: "Disponível" },
-    "16:00": { status: "Bloqueado" },
-    "17:00": { status: "Disponível" },
+    "15:30": { status: "Disponível" },
+    "16:30": { status: "Bloqueado" },
+    "17:30": { status: "Disponível" },
     "18:00": { status: "Disponível" },
-    "19:00": {
+    "18:30": { status: "Disponível" },
+    "19:30": {
       status: "Reservado",
       cliente: "Equipe Arena RP",
       telefone: "(16) 99888-1212",
       modalidade: "Futebol",
     },
-    "20:00": { status: "Bloqueado" },
+    "20:30": { status: "Bloqueado" },
     "21:00": { status: "Disponível" },
   };
 
@@ -173,7 +175,7 @@
       quadra: "Arena Beach RP",
       modalidade: "Beach Tennis",
       data: "2026-05-12",
-      horario: "19:00",
+      horario: "19:30",
       valor: 80,
       status: "Confirmada",
     },
@@ -184,7 +186,7 @@
       quadra: "Quadra Society Norte",
       modalidade: "Futebol",
       data: "2026-05-14",
-      horario: "20:00",
+      horario: "20:30",
       valor: 120,
       status: "Confirmada",
     },
@@ -204,8 +206,10 @@
   const state = {
     modalHandlers: [],
     selectedBookingTime: null,
+    selectedBookingDuration: 1,
     adminEditingCourtId: null,
     lastFocusedElement: null,
+    openCustomSelect: null,
   };
 
   const readJson = (key, fallback) => {
@@ -258,6 +262,116 @@
     );
   };
 
+  const formatDisplayDate = (value) => formatDate(value);
+
+  const formatDurationLabel = (hours) =>
+    `${hours} hora${Number(hours) > 1 ? "s" : ""}`;
+
+  const timeToMinutes = (value) => {
+    const [hours, minutes] = String(value || "00:00")
+      .split(":")
+      .map(Number);
+    return hours * 60 + minutes;
+  };
+
+  const padDatePart = (value) => String(value).padStart(2, "0");
+
+  const minutesToTime = (value) => {
+    const hours = Math.floor(value / 60);
+    const minutes = value % 60;
+    return `${padDatePart(hours)}:${padDatePart(minutes)}`;
+  };
+
+  const getBookingEndTime = (startTime, duration = 1) =>
+    minutesToTime(timeToMinutes(startTime) + Number(duration || 1) * 60);
+
+  const formatBookingWindow = (startTime, duration = 1) =>
+    startTime
+      ? `${startTime} às ${getBookingEndTime(startTime, duration)}`
+      : "Selecione";
+
+  const formatBookingEndOption = (startTime, duration = 1) =>
+    startTime ? getBookingEndTime(startTime, duration) : formatDurationLabel(duration);
+
+  const getDurationFromRange = (startTime, endTime) => {
+    if (!startTime || !endTime) {
+      return 0;
+    }
+
+    const diff = timeToMinutes(endTime) - timeToMinutes(startTime);
+
+    if (diff < 60 || diff % 60 !== 0) {
+      return 0;
+    }
+
+    return diff / 60;
+  };
+
+  const getLatestBookingStartTime = (court) =>
+    minutesToTime(Math.max(timeToMinutes(court?.horarioFechamento || "22:00") - 60, 0));
+
+  const getTodayDateString = () => {
+    const today = new Date();
+    return `${today.getFullYear()}-${padDatePart(today.getMonth() + 1)}-${padDatePart(today.getDate())}`;
+  };
+
+  const parseDateString = (value) => {
+    const [year, month, day] = String(value || "")
+      .split("-")
+      .map(Number);
+
+    if (!year || !month || !day) {
+      return null;
+    }
+
+    return new Date(year, month - 1, day);
+  };
+
+  const formatDateString = (date) => {
+    if (!(date instanceof Date)) {
+      return "";
+    }
+
+    return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
+  };
+
+  const isSameDay = (left, right) =>
+    left instanceof Date &&
+    right instanceof Date &&
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate();
+
+  const isPastDateString = (value) =>
+    Boolean(value) && String(value) < getTodayDateString();
+
+  const enforceMinDate = (input, { defaultToToday = false, onInvalid } = {}) => {
+    if (!(input instanceof HTMLInputElement) || input.type !== "date") {
+      return;
+    }
+
+    const syncValue = () => {
+      const today = getTodayDateString();
+      input.min = today;
+
+      if (!input.value && defaultToToday) {
+        input.value = today;
+        return;
+      }
+
+      if (isPastDateString(input.value)) {
+        input.value = today;
+        if (typeof onInvalid === "function") {
+          onInvalid(today);
+        }
+      }
+    };
+
+    syncValue();
+    input.addEventListener("change", syncValue);
+    input.addEventListener("input", syncValue);
+  };
+
   const rootUrl = (path) => `${basePath}${String(path).replace(/^\//, "")}`;
   const pageUrl = (path) =>
     `${basePath}pages/${String(path).replace(/^\/?pages\//, "").replace(/^\//, "")}`;
@@ -276,12 +390,6 @@
     };
 
     return map[status] || "";
-  };
-
-  const getTomorrowValue = () => {
-    const date = new Date();
-    date.setDate(date.getDate() + 1);
-    return date.toISOString().split("T")[0];
   };
 
   const seedStorage = () => {
@@ -541,11 +649,26 @@
     });
   };
 
-  const showBookingAuthModal = (courtId) => {
+  const showBookingAuthModal = (courtId, bookingSelection = null) => {
+    const court = getCourtById(courtId);
+    const hasSelection =
+      bookingSelection?.date && bookingSelection?.time && court;
+
     showModal({
       title: "Entre para reservar",
       html: `
-        <p>Você pode visualizar os detalhes da quadra, mas precisa entrar ou criar uma conta para confirmar um horário.</p>
+        <p>${hasSelection ? "Você selecionou uma data e um horário, mas precisa entrar ou criar uma conta para confirmar a reserva." : "Você pode visualizar os detalhes da quadra, mas precisa entrar ou criar uma conta para confirmar um horário."}</p>
+        ${
+          hasSelection
+            ? `
+              <div class="info-grid booking-selection-grid">
+                <div><span class="detail-label">Quadra</span><p>${court.nome}</p></div>
+                <div><span class="detail-label">Data</span><p>${formatDate(bookingSelection.date)}</p></div>
+                <div><span class="detail-label">Horário</span><p>${formatBookingWindow(bookingSelection.time, bookingSelection.duration || 1)}</p></div>
+              </div>
+            `
+            : ""
+        }
       `,
       actions: [
         {
@@ -579,6 +702,795 @@
     return `<button class="button btn-primary" type="button" data-booking-gate="${court.id}">${actionLabel}</button>`;
   };
 
+  const getReservationCoveredSlots = (startTime, duration = 1, slots = TIME_SLOTS) => {
+    const startIndex = slots.indexOf(startTime);
+
+    if (startIndex === -1) {
+      return [];
+    }
+
+    const covered = [startTime];
+
+    for (let offset = 1; offset < Number(duration || 1); offset += 1) {
+      const previous = slots[startIndex + offset - 1];
+      const next = slots[startIndex + offset];
+
+      if (!previous || !next || timeToMinutes(next) - timeToMinutes(previous) !== 60) {
+        break;
+      }
+
+      covered.push(next);
+    }
+
+    return covered;
+  };
+
+  const getAvailableDurationOptions = (schedule, startTime, maxDuration = 4) => {
+    const startIndex = schedule.findIndex((slot) => slot.horario === startTime);
+
+    if (startIndex === -1 || schedule[startIndex].status !== "Disponível") {
+      return [];
+    }
+
+    const options = [1];
+
+    for (let duration = 2; duration <= maxDuration; duration += 1) {
+      const previous = schedule[startIndex + duration - 2];
+      const next = schedule[startIndex + duration - 1];
+
+      if (
+        !previous ||
+        !next ||
+        next.status !== "Disponível" ||
+        timeToMinutes(next.horario) - timeToMinutes(previous.horario) !== 60
+      ) {
+        break;
+      }
+
+      options.push(duration);
+    }
+
+    return options;
+  };
+
+  const getBlockedIntervals = (schedule) =>
+    schedule
+      .filter((slot) => slot.status !== "Disponível")
+      .map((slot) => ({
+        start: timeToMinutes(slot.horario),
+        end: timeToMinutes(slot.horario) + 60,
+      }));
+
+  const isRangeAvailableForCourt = (court, schedule, startTime, duration = 1) => {
+    if (!startTime) {
+      return false;
+    }
+
+    const startMinutes = timeToMinutes(startTime);
+    const endMinutes = startMinutes + Number(duration || 1) * 60;
+    const openMinutes = timeToMinutes(court?.horarioAbertura || "08:00");
+    const closeMinutes = timeToMinutes(court?.horarioFechamento || "22:00");
+
+    if (startMinutes < openMinutes || endMinutes > closeMinutes) {
+      return false;
+    }
+
+    return !getBlockedIntervals(schedule).some(
+      (interval) => startMinutes < interval.end && endMinutes > interval.start
+    );
+  };
+
+  const getAllowedDurationsForStartTime = (court, schedule, startTime, maxDuration = 4) => {
+    if (!startTime) {
+      return [];
+    }
+
+    const options = [];
+
+    for (let duration = 1; duration <= maxDuration; duration += 1) {
+      if (!isRangeAvailableForCourt(court, schedule, startTime, duration)) {
+        break;
+      }
+
+      options.push(duration);
+    }
+
+    return options;
+  };
+
+  const getSelectableTimeOptions = (court, schedule, duration = 1) => {
+    const options = [];
+    const start = timeToMinutes(court?.horarioAbertura || "08:00");
+    const end = timeToMinutes(getLatestBookingStartTime(court));
+
+    for (let minutes = start; minutes <= end; minutes += 5) {
+      const time = minutesToTime(minutes);
+      options.push({
+        value: time,
+        disabled: !isRangeAvailableForCourt(court, schedule, time, duration),
+      });
+    }
+
+    return options;
+  };
+
+  const getEndTimeOptions = (court, schedule, startTime, maxDuration = 4) => {
+    if (!court || !startTime) {
+      return [];
+    }
+
+    const closeMinutes = timeToMinutes(court.horarioFechamento || "22:00");
+    const startMinutes = timeToMinutes(startTime);
+    const maxByClose = Math.floor((closeMinutes - startMinutes) / 60);
+    const limit = Math.max(0, Math.min(maxDuration, maxByClose));
+    const options = [];
+
+    for (let duration = 1; duration <= limit; duration += 1) {
+      options.push({
+        value: getBookingEndTime(startTime, duration),
+        label: getBookingEndTime(startTime, duration),
+        disabled: !isRangeAvailableForCourt(court, schedule, startTime, duration),
+      });
+    }
+
+    return options;
+  };
+
+  const createCustomTimePicker = (root, { placeholder = "Selecione um horário", onChange } = {}) => {
+    if (!(root instanceof HTMLElement)) {
+      return {
+        setState() {},
+      };
+    }
+
+    const minuteOptions = Array.from({ length: 12 }, (_, index) =>
+      padDatePart(index * 5)
+    );
+
+    const pickerState = {
+      values: [],
+      value: "",
+      disabled: true,
+      isOpen: false,
+      activeHour: null,
+      hourExplicitlyChosen: false,
+    };
+
+    root.innerHTML = `
+      <button class="time-picker-trigger" type="button" aria-expanded="false">
+        <span class="time-picker-value">${placeholder}</span>
+      </button>
+      <div class="time-picker-panel" hidden>
+        <div class="time-picker-columns">
+          <div class="time-picker-column">
+            <span class="time-picker-label">Hora</span>
+            <div class="time-picker-grid" data-time-hours></div>
+          </div>
+          <div class="time-picker-column">
+            <span class="time-picker-label">Minutos</span>
+            <div class="time-picker-grid time-picker-grid-minutes" data-time-minutes></div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const trigger = root.querySelector(".time-picker-trigger");
+    const valueNode = root.querySelector(".time-picker-value");
+    const panel = root.querySelector(".time-picker-panel");
+    const hoursNode = root.querySelector("[data-time-hours]");
+    const minutesNode = root.querySelector("[data-time-minutes]");
+
+    const getHourOptions = () =>
+      Array.from(
+        new Set(
+          pickerState.values.map((value) => String(value).split(":")[0]).filter(Boolean)
+        )
+      );
+
+    const isTimeEnabled = (time) => pickerState.values.includes(time);
+
+    const isHourEnabled = (hour) =>
+      pickerState.values.some((value) => String(value).startsWith(`${hour}:`));
+
+    const syncActiveHour = () => {
+      if (pickerState.value) {
+        pickerState.activeHour = pickerState.value.split(":")[0];
+        pickerState.hourExplicitlyChosen = true;
+        return;
+      }
+
+      if (pickerState.activeHour && isHourEnabled(pickerState.activeHour)) {
+        return;
+      }
+
+      pickerState.activeHour = getHourOptions().find((hour) => isHourEnabled(hour)) || null;
+      if (!pickerState.activeHour) {
+        pickerState.hourExplicitlyChosen = false;
+      }
+    };
+
+    const render = () => {
+      const displayValue =
+        pickerState.value ||
+        (pickerState.hourExplicitlyChosen && pickerState.activeHour
+          ? `${pickerState.activeHour}:--`
+          : placeholder);
+      valueNode.textContent = displayValue;
+      trigger.disabled = pickerState.disabled;
+      trigger.setAttribute("aria-expanded", String(pickerState.isOpen && !pickerState.disabled));
+      root.classList.toggle("is-disabled", pickerState.disabled);
+      root.classList.toggle("is-open", pickerState.isOpen && !pickerState.disabled);
+      panel.hidden = pickerState.disabled || !pickerState.isOpen;
+
+      syncActiveHour();
+
+      const hourOptions = getHourOptions();
+      hoursNode.innerHTML = hourOptions
+        .map((hour) => {
+          const enabled = isHourEnabled(hour);
+          const selected = pickerState.activeHour === hour;
+
+          return `
+            <button
+              class="time-picker-chip ${selected ? "is-selected" : ""}"
+              type="button"
+              data-time-hour="${hour}"
+              ${enabled ? "" : "disabled"}
+            >
+              ${hour}
+            </button>
+          `;
+        })
+        .join("");
+
+      const activeHour = pickerState.activeHour;
+      minutesNode.innerHTML = minuteOptions
+        .map((minute) => {
+          const time = activeHour ? `${activeHour}:${minute}` : "";
+          const enabled =
+            Boolean(pickerState.hourExplicitlyChosen && activeHour) &&
+            isTimeEnabled(time);
+          const selected = pickerState.value === time;
+
+          return `
+            <button
+              class="time-picker-chip ${selected ? "is-selected" : ""}"
+              type="button"
+              data-time-minute="${minute}"
+              ${enabled ? "" : "disabled"}
+            >
+              ${minute}
+            </button>
+          `;
+        })
+        .join("");
+    };
+
+    trigger?.addEventListener("click", () => {
+      if (pickerState.disabled) {
+        return;
+      }
+
+      pickerState.isOpen = !pickerState.isOpen;
+      render();
+    });
+
+    root.addEventListener("click", (event) => {
+      const hourButton = event.target.closest("[data-time-hour]");
+      const minuteButton = event.target.closest("[data-time-minute]");
+
+      if (hourButton) {
+        event.stopPropagation();
+        const nextHour = hourButton.dataset.timeHour || null;
+        pickerState.activeHour = nextHour;
+        pickerState.hourExplicitlyChosen = Boolean(pickerState.activeHour);
+        pickerState.value = "";
+        pickerState.isOpen = true;
+        render();
+      }
+
+      if (minuteButton && pickerState.activeHour) {
+        event.stopPropagation();
+        const nextValue = `${pickerState.activeHour}:${minuteButton.dataset.timeMinute}`;
+        pickerState.value = nextValue;
+        pickerState.isOpen = false;
+        pickerState.hourExplicitlyChosen = false;
+        render();
+
+        if (typeof onChange === "function") {
+          onChange(nextValue);
+        }
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!root.contains(event.target)) {
+        pickerState.isOpen = false;
+        render();
+      }
+    });
+
+    return {
+      setState({ values = [], value = "", disabled = true } = {}) {
+        pickerState.values = Array.isArray(values) ? values : [];
+        pickerState.value = value || "";
+        pickerState.disabled = disabled;
+        pickerState.hourExplicitlyChosen = Boolean(value);
+
+        if (disabled) {
+          pickerState.isOpen = false;
+        }
+
+        render();
+      },
+    };
+  };
+
+  const createOptionPicker = (root, { placeholder = "Selecione", onChange } = {}) => {
+    if (!(root instanceof HTMLElement)) {
+      return {
+        setState() {},
+      };
+    }
+
+    const pickerState = {
+      options: [],
+      value: "",
+      disabled: true,
+      isOpen: false,
+    };
+
+    root.innerHTML = `
+      <button class="time-picker-trigger" type="button" aria-expanded="false">
+        <span class="time-picker-value">${placeholder}</span>
+      </button>
+      <div class="time-picker-panel time-picker-panel-single" hidden>
+        <div class="time-picker-column">
+          <span class="time-picker-label">Horário final</span>
+          <div class="time-picker-grid time-picker-grid-single" data-option-grid></div>
+        </div>
+      </div>
+    `;
+
+    const trigger = root.querySelector(".time-picker-trigger");
+    const valueNode = root.querySelector(".time-picker-value");
+    const panel = root.querySelector(".time-picker-panel");
+    const gridNode = root.querySelector("[data-option-grid]");
+
+    const render = () => {
+      valueNode.textContent = pickerState.value || placeholder;
+      trigger.disabled = pickerState.disabled;
+      trigger.setAttribute("aria-expanded", String(pickerState.isOpen && !pickerState.disabled));
+      root.classList.toggle("is-disabled", pickerState.disabled);
+      root.classList.toggle("is-open", pickerState.isOpen && !pickerState.disabled);
+      panel.hidden = pickerState.disabled || !pickerState.isOpen;
+
+      gridNode.innerHTML = pickerState.options.length
+        ? pickerState.options
+            .map(
+              (option) => `
+                <button
+                  class="time-picker-chip ${pickerState.value === option.value ? "is-selected" : ""}"
+                  type="button"
+                  data-picker-option="${option.value}"
+                  ${option.disabled ? "disabled" : ""}
+                >
+                  ${option.label}
+                </button>
+              `
+            )
+            .join("")
+        : `<div class="time-picker-placeholder">Escolha o horário inicial primeiro</div>`;
+    };
+
+    trigger?.addEventListener("click", () => {
+      if (pickerState.disabled) {
+        return;
+      }
+
+      pickerState.isOpen = !pickerState.isOpen;
+      render();
+    });
+
+    root.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-picker-option]");
+
+      if (!button) {
+        return;
+      }
+
+      pickerState.value = button.dataset.pickerOption || "";
+      pickerState.isOpen = false;
+      render();
+
+      if (typeof onChange === "function") {
+        onChange(pickerState.value);
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!root.contains(event.target)) {
+        pickerState.isOpen = false;
+        render();
+      }
+    });
+
+    return {
+      setState({ options = [], value = "", disabled = true } = {}) {
+        pickerState.options = Array.isArray(options) ? options : [];
+        pickerState.value = value || "";
+        pickerState.disabled = disabled;
+
+        if (disabled) {
+          pickerState.isOpen = false;
+        }
+
+        render();
+      },
+    };
+  };
+
+  const createCustomSelect = (select) => {
+    if (!(select instanceof HTMLSelectElement)) {
+      return null;
+    }
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "custom-select-shell";
+    wrapper.innerHTML = `
+      <button
+        class="custom-select-trigger"
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded="false"
+      >
+        <span class="custom-select-value"></span>
+      </button>
+      <div class="custom-select-panel" role="listbox" hidden></div>
+    `;
+
+    select.classList.add("is-customized");
+    select.setAttribute("aria-hidden", "true");
+    select.tabIndex = -1;
+    select.insertAdjacentElement("afterend", wrapper);
+
+    const trigger = wrapper.querySelector(".custom-select-trigger");
+    const valueNode = wrapper.querySelector(".custom-select-value");
+    const panel = wrapper.querySelector(".custom-select-panel");
+
+    const close = () => {
+      wrapper.classList.remove("is-open");
+      trigger?.setAttribute("aria-expanded", "false");
+      panel.hidden = true;
+
+      if (state.openCustomSelect === close) {
+        state.openCustomSelect = null;
+      }
+    };
+
+    const open = () => {
+      if (typeof state.openCustomSelect === "function" && state.openCustomSelect !== close) {
+        state.openCustomSelect();
+      }
+
+      wrapper.classList.add("is-open");
+      trigger?.setAttribute("aria-expanded", "true");
+      panel.hidden = false;
+      state.openCustomSelect = close;
+    };
+
+    const render = () => {
+      const options = Array.from(select.options);
+      const selectedOption =
+        options.find((option) => option.value === select.value) || options[0];
+
+      valueNode.textContent = selectedOption?.textContent?.trim() || "Selecione";
+      panel.innerHTML = options
+        .map((option) => {
+          const selected = option.value === select.value;
+
+          return `
+            <button
+              class="custom-select-option ${selected ? "is-selected" : ""}"
+              type="button"
+              role="option"
+              data-select-value="${option.value}"
+              aria-selected="${String(selected)}"
+            >
+              ${option.textContent?.trim() || ""}
+            </button>
+          `;
+        })
+        .join("");
+    };
+
+    trigger?.addEventListener("click", () => {
+      if (wrapper.classList.contains("is-open")) {
+        close();
+      } else {
+        open();
+      }
+    });
+
+    wrapper.addEventListener("click", (event) => {
+      const optionButton = event.target.closest("[data-select-value]");
+
+      if (!optionButton) {
+        return;
+      }
+
+      const nextValue = optionButton.dataset.selectValue || "";
+
+      if (select.value !== nextValue) {
+        select.value = nextValue;
+        select.dispatchEvent(new Event("input", { bubbles: true }));
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+
+      render();
+      close();
+    });
+
+    select.addEventListener("change", render);
+
+    document.addEventListener("click", (event) => {
+      if (!wrapper.contains(event.target)) {
+        close();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && wrapper.classList.contains("is-open")) {
+        close();
+      }
+    });
+
+    render();
+
+    return {
+      render,
+      close,
+    };
+  };
+
+  const createCustomDatePicker = (
+    root,
+    { placeholder = "Selecione uma data", onChange } = {}
+  ) => {
+    if (!(root instanceof HTMLElement)) {
+      return {
+        setState() {},
+      };
+    }
+
+    const weekDays = ["D", "S", "T", "Q", "Q", "S", "S"];
+    const monthFormatter = new Intl.DateTimeFormat("pt-BR", {
+      month: "long",
+      year: "numeric",
+    });
+
+    const pickerState = {
+      value: "",
+      minDate: getTodayDateString(),
+      viewDate: parseDateString(getTodayDateString()) || new Date(),
+      disabled: false,
+      isOpen: false,
+    };
+
+    root.innerHTML = `
+      <button
+        class="date-picker-trigger"
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded="false"
+      >
+        <span class="date-picker-value">${placeholder}</span>
+      </button>
+      <div class="date-picker-panel" role="dialog" aria-label="Selecionar data" hidden>
+        <div class="date-picker-header">
+          <button type="button" class="date-picker-nav" data-date-prev aria-label="Mês anterior">
+            &#8249;
+          </button>
+          <strong class="date-picker-title"></strong>
+          <button type="button" class="date-picker-nav" data-date-next aria-label="Próximo mês">
+            &#8250;
+          </button>
+        </div>
+        <div class="date-picker-weekdays">
+          ${weekDays.map((day) => `<span>${day}</span>`).join("")}
+        </div>
+        <div class="date-picker-days" data-date-days></div>
+      </div>
+    `;
+
+    const trigger = root.querySelector(".date-picker-trigger");
+    const valueNode = root.querySelector(".date-picker-value");
+    const panel = root.querySelector(".date-picker-panel");
+    const titleNode = root.querySelector(".date-picker-title");
+    const daysNode = root.querySelector("[data-date-days]");
+    const prevButton = root.querySelector("[data-date-prev]");
+    const nextButton = root.querySelector("[data-date-next]");
+
+    const getMinDate = () => parseDateString(pickerState.minDate) || new Date();
+
+    const syncViewDate = () => {
+      const selected = parseDateString(pickerState.value);
+      pickerState.viewDate = selected || getMinDate();
+    };
+
+    const canGoToPreviousMonth = () => {
+      const minDate = getMinDate();
+      return (
+        pickerState.viewDate.getFullYear() > minDate.getFullYear() ||
+        (pickerState.viewDate.getFullYear() === minDate.getFullYear() &&
+          pickerState.viewDate.getMonth() > minDate.getMonth())
+      );
+    };
+
+    const render = () => {
+      const selectedDate = parseDateString(pickerState.value);
+      const minDate = getMinDate();
+      valueNode.textContent = pickerState.value
+        ? formatDisplayDate(pickerState.value)
+        : placeholder;
+      trigger.disabled = pickerState.disabled;
+      trigger.setAttribute(
+        "aria-expanded",
+        String(pickerState.isOpen && !pickerState.disabled)
+      );
+      root.classList.toggle("is-open", pickerState.isOpen && !pickerState.disabled);
+      root.classList.toggle("is-disabled", pickerState.disabled);
+      panel.hidden = pickerState.disabled || !pickerState.isOpen;
+
+      titleNode.textContent = monthFormatter.format(pickerState.viewDate);
+      prevButton.disabled = !canGoToPreviousMonth();
+
+      const year = pickerState.viewDate.getFullYear();
+      const month = pickerState.viewDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const leadingDays = firstDay.getDay();
+      const totalDays = lastDay.getDate();
+      const cells = [];
+
+      for (let index = 0; index < leadingDays; index += 1) {
+        cells.push(`<span class="date-picker-day is-empty" aria-hidden="true"></span>`);
+      }
+
+      for (let day = 1; day <= totalDays; day += 1) {
+        const currentDate = new Date(year, month, day);
+        const currentValue = formatDateString(currentDate);
+        const isDisabled = currentValue < pickerState.minDate;
+        const isToday = isSameDay(currentDate, minDate);
+        const isSelected = selectedDate && isSameDay(currentDate, selectedDate);
+
+        cells.push(`
+          <button
+            type="button"
+            class="date-picker-day ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""}"
+            data-date-value="${currentValue}"
+            ${isDisabled ? "disabled" : ""}
+          >
+            ${day}
+          </button>
+        `);
+      }
+
+      daysNode.innerHTML = cells.join("");
+    };
+
+    trigger?.addEventListener("click", () => {
+      if (pickerState.disabled) {
+        return;
+      }
+
+      pickerState.isOpen = !pickerState.isOpen;
+      render();
+    });
+
+    root.addEventListener("click", (event) => {
+      const prev = event.target.closest("[data-date-prev]");
+      const next = event.target.closest("[data-date-next]");
+      const dayButton = event.target.closest("[data-date-value]");
+
+      if (prev) {
+        event.stopPropagation();
+        if (canGoToPreviousMonth()) {
+          pickerState.viewDate = new Date(
+            pickerState.viewDate.getFullYear(),
+            pickerState.viewDate.getMonth() - 1,
+            1
+          );
+          render();
+        }
+      }
+
+      if (next) {
+        event.stopPropagation();
+        pickerState.viewDate = new Date(
+          pickerState.viewDate.getFullYear(),
+          pickerState.viewDate.getMonth() + 1,
+          1
+        );
+        render();
+      }
+
+      if (dayButton) {
+        event.stopPropagation();
+        pickerState.value = dayButton.dataset.dateValue || "";
+        pickerState.isOpen = false;
+        syncViewDate();
+        render();
+
+        if (typeof onChange === "function") {
+          onChange(pickerState.value);
+        }
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!root.contains(event.target)) {
+        pickerState.isOpen = false;
+        render();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && pickerState.isOpen) {
+        pickerState.isOpen = false;
+        render();
+      }
+    });
+
+    return {
+      setState({ value = "", minDate = getTodayDateString(), disabled = false } = {}) {
+        pickerState.value = value || "";
+        pickerState.minDate = minDate;
+        pickerState.disabled = disabled;
+        syncViewDate();
+
+        if (disabled) {
+          pickerState.isOpen = false;
+        }
+
+        render();
+      },
+    };
+  };
+
+  const getDetailScheduleForDate = (courtId, date) => {
+    const today = getTodayDateString();
+    const baseSchedule = getSchedule(courtId, date);
+
+    if (date === today) {
+      return baseSchedule;
+    }
+
+    const [selectedYear, selectedMonth, selectedDay] = date.split("-").map(Number);
+    const [todayYear, todayMonth, todayDay] = today.split("-").map(Number);
+    const selectedDate = new Date(selectedYear, selectedMonth - 1, selectedDay);
+    const currentDate = new Date(todayYear, todayMonth - 1, todayDay);
+    const offset = Math.abs(
+      Math.round((selectedDate.getTime() - currentDate.getTime()) / 86400000)
+    );
+
+    return baseSchedule.map((slot, index) => {
+      if (slot.status !== "Disponível") {
+        return slot;
+      }
+
+      if ((index + offset) % 5 === 0) {
+        return { ...slot, status: "Reservado" };
+      }
+
+      if ((index + offset) % 7 === 0) {
+        return { ...slot, status: "Bloqueado" };
+      }
+
+      return slot;
+    });
+  };
+
   const saveScheduleOverrides = (value) => {
     writeJson(STORAGE_KEYS.scheduleOverrides, value);
   };
@@ -610,14 +1522,21 @@
     );
 
     reservationSlots.forEach((reservation) => {
-      const slot = schedule.find((item) => item.horario === reservation.horario);
+      const coveredSlots = getReservationCoveredSlots(
+        reservation.horario,
+        reservation.duracao || 1
+      );
 
-      if (slot) {
-        slot.status = "Reservado";
-        slot.cliente = reservation.cliente;
-        slot.telefone = reservation.telefone || "(16) 99999-0000";
-        slot.modalidade = reservation.modalidade;
-      }
+      coveredSlots.forEach((time) => {
+        const slot = schedule.find((item) => item.horario === time);
+
+        if (slot) {
+          slot.status = "Reservado";
+          slot.cliente = reservation.cliente;
+          slot.telefone = reservation.telefone || "(16) 99999-0000";
+          slot.modalidade = reservation.modalidade;
+        }
+      });
     });
 
     const customForDay = overrides[key] || {};
@@ -1062,6 +1981,8 @@
     const helpButton = document.getElementById("helpFiltersBtn");
     const howItWorksLink = document.getElementById("navHowItWorks");
     const cityNotice = document.getElementById("city-notice");
+    const today = getTodayDateString();
+    let selectedFilterDate = today;
 
     if (!listNode || !emptyNode) {
       return;
@@ -1076,11 +1997,21 @@
       showToast("Exibindo quadras disponíveis em Ribeirão Preto/SP.", "error");
     }
 
+    const filterDatePicker = createCustomDatePicker(dateInput, {
+      onChange: (nextValue) => {
+        selectedFilterDate = nextValue || today;
+        applyFilters();
+      },
+    });
+    const modalityCustomSelect = createCustomSelect(modalitySelect);
+    const neighborhoodCustomSelect = createCustomSelect(neighborhoodSelect);
+    const priceCustomSelect = createCustomSelect(priceSelect);
+
     const applyFilters = () => {
       const term = slugifyText(searchInput?.value || "");
       const modalidade = modalitySelect?.value || "Todos";
       const bairro = neighborhoodSelect?.value || "Todos";
-      const data = dateInput?.value || "";
+      const data = selectedFilterDate || "";
       const price = priceSelect?.value || "Todos";
 
       const filtered = getActiveCourts().filter((court) => {
@@ -1123,24 +2054,26 @@
 
       if (modalitySelect) {
         modalitySelect.value = "Todos";
+        modalityCustomSelect?.render();
       }
 
       if (neighborhoodSelect) {
         neighborhoodSelect.value = "Todos";
+        neighborhoodCustomSelect?.render();
       }
 
       if (priceSelect) {
         priceSelect.value = "Todos";
+        priceCustomSelect?.render();
       }
 
-      if (dateInput) {
-        dateInput.value = getTomorrowValue();
-      }
+      selectedFilterDate = today;
+      filterDatePicker.setState({ value: selectedFilterDate, minDate: today });
 
       applyFilters();
     };
 
-    [searchInput, modalitySelect, neighborhoodSelect, dateInput, priceSelect].forEach(
+    [searchInput, modalitySelect, neighborhoodSelect, priceSelect].forEach(
       (field) => {
         if (field) {
           field.addEventListener("input", applyFilters);
@@ -1195,10 +2128,7 @@
       showBookingAuthModal(trigger.dataset.bookingGate);
     });
 
-    if (dateInput && !dateInput.value) {
-      dateInput.value = getTomorrowValue();
-    }
-
+    filterDatePicker.setState({ value: selectedFilterDate, minDate: today });
     applyFilters();
   };
 
@@ -1217,16 +2147,10 @@
     }
 
     const detailFacilities = getDetailFacilities(court);
-    const detailTimeSlots = [
-      "08:00",
-      "09:00",
-      "10:00",
-      "14:00",
-      "15:00",
-      "18:00",
-      "19:00",
-      "20:00",
-    ];
+    const today = getTodayDateString();
+    let selectedDetailDate = today;
+    state.selectedBookingTime = null;
+    state.selectedBookingDuration = 1;
 
     container.innerHTML = `
       <div class="detail-hero">
@@ -1290,64 +2214,267 @@
           <section class="detail-section schedule-preview">
             <div class="detail-section-heading">
               <h3>Horários disponíveis</h3>
-              <p>Escolha um horário para continuar com a reserva.</p>
+              <p>Escolha uma data para visualizar os horários disponíveis.</p>
             </div>
-            <div class="detail-time-grid" aria-label="Horários disponíveis">
-              ${detailTimeSlots
-                .map(
-                  (time) => `
-                    <button class="time-slot detail-time-chip is-available" type="button" data-detail-time="${time}" aria-pressed="false">
-                      ${time}
-                    </button>
-                  `
-                )
-                .join("")}
+            <div class="detail-booking-grid">
+              <label class="detail-date-field detail-booking-full">
+                <span>Data da reserva</span>
+                <div id="detail-booking-date" class="date-picker-shell"></div>
+              </label>
+              <label class="detail-date-field">
+                <span>Horário</span>
+                <div id="detail-booking-time" class="time-picker-shell"></div>
+              </label>
+              <label class="detail-date-field">
+                <span>Até</span>
+                <div id="detail-booking-end" class="time-picker-shell"></div>
+              </label>
+            </div>
+            <p class="detail-inline-message" id="detail-date-message" hidden></p>
+            <div class="detail-time-feedback" id="detail-time-feedback">
+              Selecione uma data para ver os horários disponíveis.
             </div>
             <p class="booking-note">Para confirmar um horário, é necessário entrar ou criar uma conta.</p>
+            <p class="detail-inline-message" id="detail-booking-message" hidden></p>
           </section>
           <div class="inline-actions detail-actions">
-            ${buildBookingAction(court, "Agendar horário")}
+            <button class="button btn-primary is-disabled" type="button" id="detail-booking-action" data-detail-booking="${court.id}" disabled>
+              Agendar horário
+            </button>
             <a class="button btn-secondary" href="${pageUrl("pages/quadras.html")}">Ver outras quadras</a>
           </div>
         </div>
       </div>
     `;
 
-    container.addEventListener("click", (event) => {
-      const timeTrigger = event.target.closest("[data-detail-time]");
+    const dateInput = document.getElementById("detail-booking-date");
+    const timePickerRoot = document.getElementById("detail-booking-time");
+    const timeFeedback = document.getElementById("detail-time-feedback");
+    const bookingButton = document.getElementById("detail-booking-action");
+    const bookingMessage = document.getElementById("detail-booking-message");
+    const dateMessage = document.getElementById("detail-date-message");
+    const endPickerRoot = document.getElementById("detail-booking-end");
+    const detailDatePicker = createCustomDatePicker(dateInput, {
+      onChange: (nextValue) => {
+        selectedDetailDate = nextValue || today;
+        state.selectedBookingTime = null;
+        state.selectedBookingDuration = 1;
+        setInlineMessage(dateMessage);
+        setInlineMessage(bookingMessage);
+        renderDetailSchedule();
+      },
+    });
+    const detailTimePicker = createCustomTimePicker(timePickerRoot, {
+      onChange: (nextValue) => {
+        const schedule = selectedDetailDate
+          ? getDetailScheduleForDate(court.id, selectedDetailDate)
+          : [];
 
-      if (timeTrigger) {
-        container.querySelectorAll("[data-detail-time]").forEach((button) => {
-          const isSelected = button === timeTrigger;
+        if (
+          nextValue &&
+          !isRangeAvailableForCourt(court, schedule, nextValue, 1)
+        ) {
+          state.selectedBookingTime = null;
+          setInlineMessage(
+            bookingMessage,
+            "Esse horário não está disponível para reserva."
+          );
+          renderDetailSchedule();
+          return;
+        }
 
-          button.classList.toggle("is-selected", isSelected);
-          button.setAttribute("aria-pressed", String(isSelected));
-        });
+        state.selectedBookingTime = nextValue;
+        state.selectedBookingDuration = 1;
+        setInlineMessage(bookingMessage);
+        renderDetailSchedule();
+      },
+    });
+    const detailEndPicker = createOptionPicker(endPickerRoot, {
+      placeholder: "Selecione o final",
+      onChange: (nextValue) => {
+        const duration = getDurationFromRange(state.selectedBookingTime, nextValue);
 
-        state.selectedBookingTime = timeTrigger.dataset.detailTime || null;
+        if (duration < 1) {
+          setInlineMessage(
+            bookingMessage,
+            "Escolha um horário final válido."
+          );
+          renderDetailSchedule();
+          return;
+        }
+
+        state.selectedBookingDuration = duration;
+        setInlineMessage(bookingMessage);
+        renderDetailSchedule();
+      },
+    });
+
+    const setInlineMessage = (node, message = "") => {
+      if (!node) {
         return;
       }
 
-      const trigger = event.target.closest("[data-booking-gate]");
+      node.textContent = message;
+      node.hidden = !message;
+    };
+
+    const syncBookingButton = () => {
+      const isReady = Boolean(
+        selectedDetailDate && state.selectedBookingTime && state.selectedBookingDuration >= 1
+      );
+
+      if (!bookingButton) {
+        return;
+      }
+
+      bookingButton.disabled = !isReady;
+      bookingButton.classList.toggle("is-disabled", !isReady);
+    };
+
+    const renderDetailSchedule = () => {
+      if (!timePickerRoot || !timeFeedback || !dateInput) {
+        return;
+      }
+
+      const selectedDate = selectedDetailDate;
+      const schedule = selectedDate ? getDetailScheduleForDate(court.id, selectedDate) : [];
+
+      if (!selectedDate) {
+      detailTimePicker.setState({ disabled: true });
+      detailEndPicker.setState({ disabled: true });
+      detailDatePicker.setState({ value: "", minDate: today });
+      timeFeedback.hidden = false;
+      timeFeedback.textContent = "Selecione uma data para ver os horários disponíveis.";
+      state.selectedBookingTime = null;
+        state.selectedBookingDuration = 1;
+        syncBookingButton();
+        return;
+      }
+
+      detailDatePicker.setState({ value: selectedDate, minDate: today });
+
+      if (
+        state.selectedBookingTime &&
+        !isRangeAvailableForCourt(
+          court,
+          schedule,
+          state.selectedBookingTime,
+          state.selectedBookingDuration
+        )
+      ) {
+        state.selectedBookingTime = null;
+      }
+
+      const hasAnyAvailability = getAllowedDurationsForStartTime(
+        court,
+        schedule,
+        court.horarioAbertura
+      ).length > 0 || schedule.some((slot) => slot.status === "Disponível");
+
+      timeFeedback.hidden = hasAnyAvailability;
+      timeFeedback.textContent = hasAnyAvailability
+        ? ""
+        : "Nenhum horário disponível para esta data. Escolha outra data.";
+
+      const durationOptions = getAllowedDurationsForStartTime(
+        court,
+        schedule,
+        state.selectedBookingTime
+      );
+
+      if (!durationOptions.includes(state.selectedBookingDuration)) {
+        state.selectedBookingDuration = durationOptions[0] || 1;
+      }
+
+      const timeOptions = getSelectableTimeOptions(court, schedule, 1);
+      detailTimePicker.setState({
+        values: timeOptions.filter((option) => !option.disabled).map((option) => option.value),
+        value: state.selectedBookingTime || "",
+        disabled: !timeOptions.some((option) => !option.disabled),
+      });
+      const endOptions = getEndTimeOptions(court, schedule, state.selectedBookingTime);
+      detailEndPicker.setState({
+        options: endOptions,
+        value: state.selectedBookingTime
+          ? getBookingEndTime(state.selectedBookingTime, state.selectedBookingDuration)
+          : "",
+        disabled: !state.selectedBookingTime || !endOptions.length,
+      });
+
+      syncBookingButton();
+    };
+
+    renderDetailSchedule();
+    syncBookingButton();
+
+    container.addEventListener("click", (event) => {
+      const trigger = event.target.closest("[data-detail-booking]");
 
       if (!trigger) {
         return;
       }
 
       event.preventDefault();
-      showBookingAuthModal(trigger.dataset.bookingGate);
+
+      if (!selectedDetailDate || !state.selectedBookingTime || state.selectedBookingDuration < 1) {
+        setInlineMessage(
+          bookingMessage,
+          "Escolha uma data, um horário e até quando a reserva vai."
+        );
+        syncBookingButton();
+        return;
+      }
+
+      if (
+        !isRangeAvailableForCourt(
+          court,
+          getDetailScheduleForDate(court.id, selectedDetailDate),
+          state.selectedBookingTime,
+          state.selectedBookingDuration
+        )
+      ) {
+        setInlineMessage(
+          bookingMessage,
+          "Esse intervalo de horário não está disponível."
+        );
+        syncBookingButton();
+        return;
+      }
+
+      setInlineMessage(bookingMessage);
+
+      const targetUrl = `${pageUrl(`pages/agendamento.html?id=${court.id}`)}&date=${selectedDetailDate}&time=${state.selectedBookingTime}&duration=${state.selectedBookingDuration}`;
+
+      if (getCurrentUser()) {
+        window.location.href = targetUrl;
+        return;
+      }
+
+      showBookingAuthModal(court.id, {
+        date: selectedDetailDate,
+        time: state.selectedBookingTime,
+        duration: state.selectedBookingDuration,
+      });
     });
   };
 
   const initAgendamentoPage = () => {
     const summaryNode = document.getElementById("agendamento-quadra");
-    const slotsNode = document.getElementById("schedule-grid");
     const form = document.getElementById("agendamento-form");
     const bookingDate = document.getElementById("booking-date");
     const bookingModalidade = document.getElementById("booking-modalidade");
+    const bookingTime = document.getElementById("booking-time");
+    const bookingEnd = document.getElementById("booking-end");
     const recapNode = document.getElementById("booking-recap");
 
-    if (!summaryNode || !slotsNode || !form || !bookingDate || !recapNode) {
+    if (
+      !summaryNode ||
+      !form ||
+      !bookingDate ||
+      !bookingTime ||
+      !bookingEnd ||
+      !recapNode
+    ) {
       return;
     }
 
@@ -1359,7 +2486,18 @@
     }
 
     state.selectedBookingTime = null;
-    bookingDate.value = getTomorrowValue();
+    state.selectedBookingDuration = 1;
+    enforceMinDate(bookingDate, {
+      defaultToToday: true,
+      onInvalid: () =>
+        showToast("A reserva aceita apenas hoje ou datas futuras.", "error"),
+    });
+
+    const requestedDate = params.get("date");
+    if (requestedDate && !isPastDateString(requestedDate)) {
+      bookingDate.value = requestedDate;
+    }
+
     bookingModalidade.value = court.modalidade;
 
     summaryNode.innerHTML = `
@@ -1375,6 +2513,7 @@
     `;
 
     const renderRecap = () => {
+      const totalValue = Number(court.preco || 0) * Number(state.selectedBookingDuration || 1);
       recapNode.innerHTML = `
         <div class="recap-item">
           <span>Quadra</span>
@@ -1386,36 +2525,86 @@
         </div>
         <div class="recap-item">
           <span>Horário</span>
-          <strong>${state.selectedBookingTime || "Selecione"}</strong>
+          <strong>${formatBookingWindow(state.selectedBookingTime, state.selectedBookingDuration)}</strong>
         </div>
         <div class="recap-item">
           <span>Valor</span>
-          <strong>${formatCurrency(court.preco)}</strong>
+          <strong>${formatCurrency(totalValue)}</strong>
         </div>
       `;
     };
 
-    const renderSchedule = () => {
-      const schedule = getSchedule(court.id, bookingDate.value);
-      slotsNode.innerHTML = "";
+    const bookingTimePicker = createCustomTimePicker(bookingTime, {
+      onChange: (nextValue) => {
+        const schedule = getSchedule(court.id, bookingDate.value);
 
-      schedule.forEach((slot) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = `time-slot ${slot.status === "Disponível" ? "is-available" : "is-disabled"} ${state.selectedBookingTime === slot.horario ? "is-selected" : ""}`;
-        button.textContent = slot.horario;
-        button.dataset.time = slot.horario;
-        button.dataset.status = slot.status;
-
-        if (slot.status !== "Disponível") {
-          button.disabled = true;
-          button.insertAdjacentHTML(
-            "beforeend",
-            `<span class="slot-state">${slot.status}</span>`
-          );
+        if (
+          nextValue &&
+          !isRangeAvailableForCourt(court, schedule, nextValue, 1)
+        ) {
+          state.selectedBookingTime = null;
+          showToast("Esse horário não está disponível para reserva.", "error");
+          renderSchedule();
+          return;
         }
 
-        slotsNode.appendChild(button);
+        state.selectedBookingTime = nextValue;
+        state.selectedBookingDuration = 1;
+        renderSchedule();
+      },
+    });
+    const bookingEndPicker = createOptionPicker(bookingEnd, {
+      placeholder: "Selecione o final",
+      onChange: (nextValue) => {
+        const duration = getDurationFromRange(state.selectedBookingTime, nextValue);
+
+        if (duration < 1) {
+          showToast("Escolha um horário final válido.", "error");
+          renderSchedule();
+          return;
+        }
+
+        state.selectedBookingDuration = duration;
+        renderSchedule();
+      },
+    });
+
+    const renderSchedule = () => {
+      const schedule = getSchedule(court.id, bookingDate.value);
+      const durationOptions = getAllowedDurationsForStartTime(
+        court,
+        schedule,
+        state.selectedBookingTime
+      );
+
+      if (!durationOptions.includes(state.selectedBookingDuration)) {
+        state.selectedBookingDuration = durationOptions[0] || 1;
+      }
+      if (
+        state.selectedBookingTime &&
+        !isRangeAvailableForCourt(
+          court,
+          schedule,
+          state.selectedBookingTime,
+          state.selectedBookingDuration
+        )
+      ) {
+        state.selectedBookingTime = null;
+      }
+
+      const timeOptions = getSelectableTimeOptions(court, schedule, 1);
+      bookingTimePicker.setState({
+        values: timeOptions.filter((option) => !option.disabled).map((option) => option.value),
+        value: state.selectedBookingTime || "",
+        disabled: !timeOptions.some((option) => !option.disabled),
+      });
+      const endOptions = getEndTimeOptions(court, schedule, state.selectedBookingTime);
+      bookingEndPicker.setState({
+        options: endOptions,
+        value: state.selectedBookingTime
+          ? getBookingEndTime(state.selectedBookingTime, state.selectedBookingDuration)
+          : "",
+        disabled: !state.selectedBookingTime || !endOptions.length,
       });
 
       renderRecap();
@@ -1423,32 +2612,57 @@
 
     bookingDate.addEventListener("change", () => {
       state.selectedBookingTime = null;
+      state.selectedBookingDuration = 1;
       renderSchedule();
     });
 
-    slotsNode.addEventListener("click", (event) => {
-      const button = event.target.closest(".time-slot");
-
-      if (!button || button.disabled) {
-        return;
+    const requestedTime = params.get("time");
+    if (requestedTime) {
+      if (
+        isRangeAvailableForCourt(
+          court,
+          getSchedule(court.id, bookingDate.value),
+          requestedTime,
+          1
+        )
+      ) {
+        state.selectedBookingTime = requestedTime;
       }
+    }
 
-      state.selectedBookingTime = button.dataset.time;
-      renderSchedule();
-    });
+    const requestedDuration = Math.max(1, Number(params.get("duration") || 1));
+    state.selectedBookingDuration = requestedDuration;
+
+    renderSchedule();
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
 
-      if (!bookingDate.value || !state.selectedBookingTime) {
-        showToast("Selecione a data e um horário disponível.", "error");
+      if (!bookingDate.value || !state.selectedBookingTime || state.selectedBookingDuration < 1) {
+        showToast("Selecione a data, o horário inicial e até quando a reserva vai.", "error");
+        return;
+      }
+
+      if (
+        !isRangeAvailableForCourt(
+          court,
+          getSchedule(court.id, bookingDate.value),
+          state.selectedBookingTime,
+          state.selectedBookingDuration
+        )
+      ) {
+        showToast("Esse intervalo de horário não está disponível.", "error");
         return;
       }
 
       const user = getCurrentUser();
 
       if (!user) {
-        showBookingAuthModal(court.id);
+        showBookingAuthModal(court.id, {
+          date: bookingDate.value,
+          time: state.selectedBookingTime,
+          duration: state.selectedBookingDuration,
+        });
         return;
       }
 
@@ -1460,7 +2674,8 @@
         modalidade: bookingModalidade.value || court.modalidade,
         data: bookingDate.value,
         horario: state.selectedBookingTime,
-        valor: court.preco,
+        duracao: state.selectedBookingDuration,
+        valor: Number(court.preco || 0) * Number(state.selectedBookingDuration || 1),
       });
 
       showModal({
@@ -1481,7 +2696,6 @@
       });
     });
 
-    renderSchedule();
   };
 
   const initReservasPage = () => {
@@ -1503,12 +2717,13 @@
               <div class="reservation-head">
                 <div>
                   <h3>${reservation.quadra}</h3>
-                  <p>${reservation.modalidade} • ${formatDate(reservation.data)} às ${reservation.horario}</p>
+                  <p>${reservation.modalidade} • ${formatDate(reservation.data)} • ${formatBookingWindow(reservation.horario, reservation.duracao || 1)}</p>
                 </div>
                 <span class="status-pill ${statusClass(reservation.status)}">${reservation.status}</span>
               </div>
               <div class="reservation-meta">
                 <span><strong>Cliente:</strong> ${reservation.cliente}</span>
+                <span><strong>Duração:</strong> ${formatDurationLabel(reservation.duracao || 1)}</span>
                 <span><strong>Valor:</strong> ${formatCurrency(reservation.valor)}</span>
               </div>
               <div class="inline-actions">
@@ -1594,7 +2809,7 @@
             <td>${reservation.quadra}</td>
             <td>${reservation.modalidade}</td>
             <td>${formatDate(reservation.data)}</td>
-            <td>${reservation.horario}</td>
+            <td>${formatBookingWindow(reservation.horario, reservation.duracao || 1)}</td>
             <td><span class="status-pill ${statusClass(reservation.status)}">${reservation.status}</span></td>
           </tr>
         `
@@ -1790,7 +3005,11 @@
       )
       .join("");
 
-    dateInput.value = getTomorrowValue();
+    enforceMinDate(dateInput, {
+      defaultToToday: true,
+      onInvalid: () =>
+        showToast("A agenda administrativa aceita apenas hoje ou datas futuras.", "error"),
+    });
 
     const renderRows = () => {
       const courtId = Number(courtSelect.value);
@@ -1935,7 +3154,7 @@
             <td>${formatDate(reservation.data)}</td>
             <td>${reservation.quadra}</td>
             <td>${reservation.modalidade}</td>
-            <td>1</td>
+            <td>${reservation.duracao || 1}</td>
             <td>${formatCurrency(reservation.valor)}</td>
           </tr>
         `
