@@ -1313,6 +1313,29 @@
 
     const getMinDate = () => parseDateString(pickerState.minDate) || new Date();
 
+    const updatePanelDirection = () => {
+      if (!pickerState.isOpen || pickerState.disabled || !panel) {
+        root.classList.remove("opens-up");
+        return;
+      }
+
+      root.classList.remove("opens-up");
+      const panelRect = panel.getBoundingClientRect();
+      const triggerRect = trigger?.getBoundingClientRect();
+
+      if (!triggerRect) {
+        return;
+      }
+
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+      const spaceBelow = viewportHeight - triggerRect.bottom;
+      const spaceAbove = triggerRect.top;
+      const shouldOpenUp =
+        panelRect.height > spaceBelow && spaceAbove > spaceBelow;
+
+      root.classList.toggle("opens-up", shouldOpenUp);
+    };
+
     const syncViewDate = () => {
       const selected = parseDateString(pickerState.value);
       pickerState.viewDate = selected || getMinDate();
@@ -1377,6 +1400,7 @@
       }
 
       daysNode.innerHTML = cells.join("");
+      updatePanelDirection();
     };
 
     trigger?.addEventListener("click", () => {
@@ -1441,6 +1465,8 @@
         render();
       }
     });
+
+    window.addEventListener("resize", updatePanelDirection);
 
     return {
       setState({ value = "", minDate = getTodayDateString(), disabled = false } = {}) {
