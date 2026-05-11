@@ -1892,6 +1892,10 @@ p {
   border-radius: 999px !important;
 }
 
+.help-icon-button {
+  border-radius: 999px !important;
+}
+
 body[data-page="proprietarios"] .button.pill-cta,
 body[data-page="proprietarios"] .btn-primary.pill-cta,
 body[data-page="proprietarios"] .btn-secondary.pill-cta,

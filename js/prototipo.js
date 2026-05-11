@@ -530,7 +530,6 @@
         {
           label: "ENTRAR",
           variant: "primary",
-          className: "pill-cta",
           href: pageUrl("login.html"),
         },
         {
