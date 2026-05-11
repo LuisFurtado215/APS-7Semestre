@@ -205,6 +205,7 @@
     modalHandlers: [],
     selectedBookingTime: null,
     adminEditingCourtId: null,
+    lastFocusedElement: null,
   };
 
   const readJson = (key, fallback) => {
@@ -423,7 +424,7 @@
       modal.setAttribute("aria-hidden", "true");
       modal.innerHTML = `
         <div class="shared-modal-backdrop" data-shared-close></div>
-        <div class="shared-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="shared-modal-title">
+        <div class="shared-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="shared-modal-title" tabindex="-1">
           <button class="shared-modal-close" type="button" aria-label="Fechar" data-shared-close>&times;</button>
           <h3 id="shared-modal-title"></h3>
           <div class="shared-modal-content" id="shared-modal-content"></div>
@@ -442,14 +443,22 @@
     modal.setAttribute("aria-hidden", "true");
     state.modalHandlers = [];
     syncBodyLock();
+
+    if (state.lastFocusedElement instanceof HTMLElement) {
+      state.lastFocusedElement.focus();
+    }
+
+    state.lastFocusedElement = null;
   };
 
   const showModal = ({ title, text, html, actions = [] }) => {
     const modal = ensureSharedModal();
+    const dialog = modal.querySelector(".shared-modal-dialog");
     const titleNode = modal.querySelector("#shared-modal-title");
     const contentNode = modal.querySelector("#shared-modal-content");
     const actionsNode = modal.querySelector("#shared-modal-actions");
 
+    state.lastFocusedElement = document.activeElement;
     titleNode.textContent = title || "Aviso";
     contentNode.innerHTML = html || (text ? `<p>${text}</p>` : "");
     actionsNode.innerHTML = "";
@@ -457,7 +466,7 @@
 
     actions.forEach((action, index) => {
       const button = document.createElement(action.href ? "a" : "button");
-      button.className = `button ${action.variant === "secondary" ? "btn-secondary" : "btn-primary"}`;
+      button.className = `button ${action.variant === "secondary" ? "btn-secondary" : "btn-primary"} ${action.className || ""}`.trim();
       button.textContent = action.label;
 
       if (action.href) {
@@ -482,6 +491,55 @@
     modal.classList.add("is-open");
     modal.setAttribute("aria-hidden", "false");
     syncBodyLock();
+    dialog?.focus();
+  };
+
+  const showFiltersHelpModal = () => {
+    showModal({
+      title: "Como funciona?",
+      html: `
+        <div class="help-modal-content">
+          <p class="help-modal-intro">Busque a quadra ideal, confira os detalhes e entre para reservar seu horário.</p>
+          <div class="help-modal-steps">
+            <article>
+              <span>1</span>
+              <div>
+                <h4>Use os filtros</h4>
+                <p>Busque por nome, bairro, modalidade, data ou faixa de preço.</p>
+              </div>
+            </article>
+            <article>
+              <span>2</span>
+              <div>
+                <h4>Compare as opções</h4>
+                <p>Veja estrutura, localização, preço e informações da quadra.</p>
+              </div>
+            </article>
+            <article>
+              <span>3</span>
+              <div>
+                <h4>Entre para reservar</h4>
+                <p>Para confirmar um horário, você precisa entrar ou criar uma conta.</p>
+              </div>
+            </article>
+          </div>
+          <p class="help-modal-notice"><strong>Importante:</strong> visitantes podem visualizar as quadras, mas é necessário ter uma conta para reservar.</p>
+        </div>
+      `,
+      actions: [
+        {
+          label: "ENTRAR",
+          variant: "primary",
+          className: "pill-cta",
+          href: pageUrl("login.html"),
+        },
+        {
+          label: "CRIAR CONTA",
+          variant: "secondary",
+          href: pageUrl("cadastro.html"),
+        },
+      ],
+    });
   };
 
   const showBookingAuthModal = (courtId) => {
@@ -496,6 +554,7 @@
         {
           label: "Entrar",
           variant: "primary",
+          className: "pill-cta",
           href: pageUrl("login.html"),
         },
         {
@@ -509,10 +568,10 @@
 
   const buildBookingAction = (court) => {
     if (getCurrentUser()) {
-      return `<a class="button btn-primary" href="${pageUrl(`pages/agendamento.html?id=${court.id}`)}">Agendar horário</a>`;
+      return `<a class="button btn-primary" href="${pageUrl(`pages/agendamento.html?id=${court.id}`)}">Agendar</a>`;
     }
 
-    return `<button class="button btn-primary" type="button" data-booking-gate="${court.id}">Agendar horário</button>`;
+    return `<button class="button btn-primary" type="button" data-booking-gate="${court.id}">Agendar</button>`;
   };
 
   const saveScheduleOverrides = (value) => {
@@ -940,12 +999,12 @@
         <div class="card-head">
           <div class="court-card-copy">
             <h3>${court.nome}</h3>
-            <p class="court-meta">${court.modalidade} • ${court.bairro}</p>
           </div>
           <span class="price-badge">${formatCurrency(court.preco)}/hora</span>
         </div>
-        <div class="tag-row">${buildFacilityBadges(court.estrutura)}</div>
-        <div class="inline-actions">
+        <p class="court-meta">${court.modalidade} • ${court.bairro}</p>
+        <div class="tag-row tag-row-court">${buildFacilityBadges(court.estrutura.slice(0, 4))}</div>
+        <div class="inline-actions court-card-actions">
           <a class="button btn-secondary" href="${pageUrl(`pages/detalhes-quadra.html?id=${court.id}`)}">Ver detalhes</a>
           ${buildBookingAction(court)}
         </div>
@@ -963,6 +1022,8 @@
     const priceSelect = document.getElementById("filtro-preco");
     const applyButton = document.getElementById("aplicar-filtros");
     const clearButton = document.getElementById("limpar-filtros");
+    const helpButton = document.getElementById("helpFiltersBtn");
+    const howItWorksLink = document.getElementById("navHowItWorks");
     const cityNotice = document.getElementById("city-notice");
 
     if (!listNode || !emptyNode) {
@@ -1057,6 +1118,33 @@
 
     if (clearButton) {
       clearButton.addEventListener("click", clearFilters);
+    }
+
+    if (helpButton) {
+      helpButton.addEventListener("click", showFiltersHelpModal);
+    }
+
+    if (howItWorksLink && helpButton) {
+      howItWorksLink.addEventListener("click", (event) => {
+        event.preventDefault();
+
+        helpButton.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+          inline: "nearest",
+        });
+
+        window.setTimeout(() => {
+          helpButton.classList.remove("help-bounce");
+          void helpButton.offsetWidth;
+          helpButton.classList.add("help-bounce");
+          helpButton.focus({ preventScroll: true });
+
+          window.setTimeout(() => {
+            helpButton.classList.remove("help-bounce");
+          }, 1200);
+        }, 450);
+      });
     }
 
     listNode.addEventListener("click", (event) => {

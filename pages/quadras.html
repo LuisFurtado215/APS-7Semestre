@@ -27,8 +27,8 @@
             </button>
             <ul class="nav-menu" id="nav-menu">
               <li><a href="../index.html">Início</a></li>
-              <li><a href="quadras.html">Quadras</a></li>
-              <li><a href="../index.html#como-funciona">Como funciona</a></li>
+              <li><a href="#quadras-listagem">Listagem</a></li>
+              <li><a id="navHowItWorks" href="#helpFiltersBtn">Como funciona</a></li>
               <li><a href="proprietarios.html">Para proprietários</a></li>
               <li data-auth-only hidden><a href="minhas-reservas.html">Minhas Reservas</a></li>
               <li class="nav-mobile-only" data-guest-only><a href="login.html">Entrar</a></li>
@@ -37,12 +37,12 @@
 
           <div class="header-actions">
             <span class="header-link" data-current-user hidden></span>
-            <a class="button button-light header-cta" href="login.html" data-header-cta>Entrar</a>
+            <a class="button button-light header-cta pill-cta" href="login.html" data-header-cta>Entrar</a>
           </div>
         </div>
       </header>
 
-      <main class="app-main">
+      <main class="app-main" id="quadras-top">
         <section class="page-hero section-orange section-pattern section-pattern-light">
           <div class="container page-hero-grid quadras-hero-grid">
             <div class="page-hero-copy quadras-hero-copy">
@@ -71,7 +71,7 @@
           </div>
         </section>
 
-        <section class="page-section section-dark section-pattern section-pattern-dark">
+        <section class="page-section section-dark section-pattern section-pattern-dark" id="quadras-listagem">
           <div class="container">
             <div class="page-title-row">
               <div>
@@ -83,7 +83,19 @@
 
             <div class="results-layout results-layout-quadras">
               <aside class="form-card toolbar-card quadras-toolbar">
-                <h3>Filtros rápidos</h3>
+                <div class="toolbar-title-row">
+                  <h3>Filtros rápidos</h3>
+                  <button
+                    id="helpFiltersBtn"
+                    class="help-icon-button"
+                    type="button"
+                    aria-label="Como funciona"
+                    data-help-filters
+                    data-tooltip="Como funciona?"
+                  >
+                    ?
+                  </button>
+                </div>
                 <p class="toolbar-helper">
                   Compare as opções com calma. Para confirmar a reserva, é preciso entrar.
                 </p>
@@ -141,11 +153,12 @@
             </div>
           </div>
         </section>
+
       </main>
 
       <footer class="site-footer">
         <div class="container footer-grid app-split-footer">
-          <div>
+          <div class="footer-brand-copy">
             <a class="brand footer-brand" href="../index.html" aria-label="Ir para o início">
               <span class="brand-mark" aria-hidden="true"><span class="brand-grid"></span></span>
               <span class="brand-text"><strong>agendei</strong><span>quadras</span></span>
@@ -153,19 +166,27 @@
             <p>Agendei Quadras conecta jogadores, horários e espaços esportivos em um só lugar.</p>
           </div>
           <div class="footer-links-group">
-            <strong>Usuário</strong>
-            <a href="minhas-reservas.html">Minhas reservas</a>
+            <strong>Navegação</strong>
+            <a href="../index.html">Home</a>
+            <a href="quadras.html">Buscar quadras</a>
+            <a href="../index.html#como-funciona">Como funciona</a>
+            <a href="proprietarios.html">Para proprietários</a>
           </div>
           <div class="footer-links-group">
-            <strong>Busca</strong>
-            <a href="quadras.html">Buscar quadras</a>
-            <a href="agendamento.html?id=1">Agendar horário</a>
+            <strong>Usuário</strong>
+            <a href="login.html">Entrar</a>
+            <a href="cadastro.html">Criar conta</a>
+            <a href="minhas-reservas.html">Minhas reservas</a>
           </div>
           <div class="footer-links-group">
             <strong>Gestão</strong>
             <a href="admin-dashboard.html">Área administrativa</a>
             <a href="admin-relatorios.html">Relatórios</a>
+            <a href="cadastro-proprietario.html">Cadastro de quadras</a>
           </div>
+        </div>
+        <div class="container footer-bottom">
+          <p>© 2026 Agendei Quadras. Protótipo acadêmico de interface front-end.</p>
         </div>
       </footer>
     </div>
