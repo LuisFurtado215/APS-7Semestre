@@ -362,6 +362,37 @@
   const isPastDateString = (value) =>
     Boolean(value) && String(value) < getTodayDateString();
 
+  const getSaoPauloDateTimeString = (date = new Date()) => {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+
+    const getPart = (type) => parts.find((part) => part.type === type)?.value || "00";
+
+    return `${getPart("year")}-${getPart("month")}-${getPart("day")} ${getPart("hour")}:${getPart("minute")}`;
+  };
+
+  const getReservationDateTimeString = (reservation, boundary = "start") => {
+    const time =
+      boundary === "end"
+        ? getBookingEndTime(reservation.horario, reservation.duracao || 1)
+        : reservation.horario;
+
+    return `${reservation.data || "0000-00-00"} ${time || "00:00"}`;
+  };
+
+  const isReservationFinishedInSaoPaulo = (reservation) =>
+    getReservationDateTimeString(reservation, "end") <= getSaoPauloDateTimeString();
+
+  const isReservationStartedInSaoPaulo = (reservation) =>
+    getReservationDateTimeString(reservation, "start") <= getSaoPauloDateTimeString();
+
   const enforceMinDate = (input, { defaultToToday = false, onInvalid } = {}) => {
     if (!(input instanceof HTMLInputElement) || input.type !== "date") {
       return;
@@ -1694,6 +1725,26 @@
     setReservations(reservations);
   };
 
+  const removeUserReservationSamples = (currentUser) => {
+    if (!currentUser?.email) {
+      return;
+    }
+
+    const userEmail = normalizeEmail(currentUser.email);
+    const reservations = getReservations();
+    const cleanedReservations = reservations.filter(
+      (reservation) =>
+        !(
+          normalizeEmail(reservation.userEmail) === userEmail &&
+          reservation.isDemoReservation
+        )
+    );
+
+    if (cleanedReservations.length !== reservations.length) {
+      setReservations(cleanedReservations);
+    }
+  };
+
   const getCountsBy = (items, key) =>
     items.reduce((accumulator, item) => {
       const groupKey = item[key] || "Outros";
@@ -2971,6 +3022,7 @@
 
   const initReservasPage = () => {
     const listNode = document.getElementById("reservas-list");
+    const tabsNode = document.getElementById("reservas-tabs");
 
     if (!listNode) {
       return;
@@ -2986,49 +3038,178 @@
       return;
     }
 
-    const renderReservations = () => {
-      const reservations = getReservations().filter(
-        (reservation) => normalizeEmail(reservation.userEmail) === normalizeEmail(currentUser.email)
+    removeUserReservationSamples(currentUser);
+
+    let activeFilter = "todas";
+
+    const getEffectiveStatus = (reservation) => {
+      if (reservation.status === "Cancelada") {
+        return "Cancelada";
+      }
+
+      if (reservation.status === "Concluída" || isReservationFinishedInSaoPaulo(reservation)) {
+        return "Concluída";
+      }
+
+      return "Confirmada";
+    };
+
+    const getReservationCategory = (reservation) => {
+      const status = getEffectiveStatus(reservation);
+
+      if (status === "Cancelada") {
+        return "canceladas";
+      }
+
+      if (status === "Concluída") {
+        return "concluidas";
+      }
+
+      return "proximas";
+    };
+
+    const getReservationStatusLabel = (status) =>
+      status === "Confirmada" ? "Agendada" : status;
+
+    const getUserReservations = () =>
+      getReservations()
+        .filter(
+          (reservation) => normalizeEmail(reservation.userEmail) === normalizeEmail(currentUser.email)
+        )
+        .sort((left, right) => String(right.data).localeCompare(String(left.data)));
+
+    const getEmptyState = () => {
+      const states = {
+        proximas: {
+          title: "Nenhuma reserva futura",
+          text: "Busque uma quadra disponível e escolha um horário para jogar.",
+          action: "Buscar quadras",
+        },
+        concluidas: {
+          title: "Nenhuma reserva concluída",
+          text: "Suas reservas finalizadas aparecerão aqui depois dos jogos.",
+          action: "Buscar quadras",
+        },
+        canceladas: {
+          title: "Nenhuma reserva cancelada",
+          text: "Suas reservas canceladas aparecerão aqui.",
+          action: "",
+        },
+        todas: {
+          title: "Nenhuma reserva encontrada",
+          text: "Esta conta ainda não possui reservas registradas.",
+          action: "Buscar quadras",
+        },
+      };
+
+      return states[activeFilter] || states.todas;
+    };
+
+    const renderTabs = (reservations) => {
+      if (!tabsNode) {
+        return;
+      }
+
+      const counts = reservations.reduce(
+        (accumulator, reservation) => {
+          accumulator.todas += 1;
+          accumulator[getReservationCategory(reservation)] += 1;
+          return accumulator;
+        },
+        { todas: 0, proximas: 0, concluidas: 0, canceladas: 0 }
       );
 
-      if (!reservations.length) {
+      tabsNode.querySelectorAll("[data-reservation-filter]").forEach((button) => {
+        const filter = button.dataset.reservationFilter;
+        const countNode = button.querySelector("span");
+        const isActive = filter === activeFilter;
+
+        button.classList.toggle("is-active", isActive);
+        button.setAttribute("aria-selected", String(isActive));
+
+        if (countNode) {
+          countNode.textContent = String(counts[filter] || 0);
+        }
+      });
+    };
+
+    const renderReservations = () => {
+      const reservations = getUserReservations();
+      const filteredReservations =
+        activeFilter === "todas"
+          ? reservations
+          : reservations.filter((reservation) => getReservationCategory(reservation) === activeFilter);
+
+      renderTabs(reservations);
+
+      if (!filteredReservations.length) {
+        const emptyState = getEmptyState();
         listNode.innerHTML = `
-          <article class="app-card empty-state-card">
-            <h3>Nenhuma reserva encontrada</h3>
-            <p>Esta conta ainda não possui reservas registradas.</p>
-            <div class="inline-actions">
-              <a class="button btn-primary" href="${pageUrl("quadras.html")}">Buscar quadras</a>
-            </div>
+          <article class="app-card empty-state-card reservation-empty-state">
+            <h3>${emptyState.title}</h3>
+            <p>${emptyState.text}</p>
+            ${
+              emptyState.action
+                ? `<div class="inline-actions"><a class="button btn-primary reservation-action" href="${pageUrl("quadras.html")}">${emptyState.action}</a></div>`
+                : ""
+            }
           </article>
         `;
         return;
       }
 
-      listNode.innerHTML = reservations
+      listNode.innerHTML = filteredReservations
         .map((reservation) => {
           const court = getCourtById(reservation.courtId) || {};
+          const effectiveStatus = getEffectiveStatus(reservation);
+          const statusLabel = getReservationStatusLabel(effectiveStatus);
+          const bairro = reservation.bairro || court.bairro || "Ribeirão Preto";
+          const canCancel = effectiveStatus === "Confirmada" && !isReservationStartedInSaoPaulo(reservation);
+          const detailsUrl = pageUrl(`pages/detalhes-quadra.html?id=${court.id || reservation.courtId}`);
+          const bookingUrl = pageUrl(`pages/agendamento.html?id=${court.id || reservation.courtId}`);
+          const statusNote =
+            effectiveStatus === "Confirmada"
+              ? "Reserva ativa"
+              : effectiveStatus === "Concluída"
+                ? "Jogo realizado"
+                : "Cancelada";
+          const actionButtons = [];
+
+          if (canCancel) {
+            actionButtons.push(
+              `<button class="button reservation-action reservation-action-cancel" type="button" data-cancel-reserva="${reservation.id}">Cancelar</button>`
+            );
+          }
+
+          if (effectiveStatus !== "Confirmada") {
+            actionButtons.push(
+              `<a class="button btn-primary reservation-action" href="${bookingUrl}">Agendar novamente</a>`
+            );
+          }
+
+          actionButtons.push(
+            `<a class="button btn-secondary reservation-action" href="${detailsUrl}">Ver detalhes</a>`
+          );
 
           return `
-            <article class="app-card reservation-card">
+            <article class="app-card reservation-card reservation-card-${getReservationCategory(reservation)}" data-reservation-id="${reservation.id}">
               <div class="reservation-head">
                 <div>
                   <h3>${reservation.quadra}</h3>
-                  <p>${reservation.modalidade} • ${formatDate(reservation.data)} • ${formatBookingWindow(reservation.horario, reservation.duracao || 1)}</p>
+                  <p>${reservation.modalidade} • ${bairro}</p>
                 </div>
-                <span class="status-pill ${statusClass(reservation.status)}">${reservation.status}</span>
+                <span class="status-pill ${statusClass(effectiveStatus)}">${statusLabel}</span>
               </div>
-              <div class="reservation-meta">
-                <span><strong>Cliente:</strong> ${reservation.cliente}</span>
-                <span><strong>Duração:</strong> ${formatDurationLabel(reservation.duracao || 1)}</span>
-                <span><strong>Valor:</strong> ${formatCurrency(reservation.valor)}</span>
+              <div class="reservation-info-grid">
+                <span class="reservation-info-chip" data-tooltip="Data" aria-label="Data"><span class="reservation-info-icon reservation-info-icon-calendar" aria-hidden="true"></span>${formatDate(reservation.data)}</span>
+                <span class="reservation-info-chip" data-tooltip="Horário" aria-label="Horário"><span class="reservation-info-icon reservation-info-icon-clock" aria-hidden="true"></span>${formatBookingWindow(reservation.horario, reservation.duracao || 1)}</span>
+                <span class="reservation-info-chip" data-tooltip="Duração" aria-label="Duração"><span class="reservation-info-icon reservation-info-icon-timer" aria-hidden="true"></span>${formatDurationLabel(reservation.duracao || 1)}</span>
+                <span class="reservation-info-chip" data-tooltip="Valor" aria-label="Valor"><span class="reservation-info-icon reservation-info-icon-money" aria-hidden="true"></span>${formatCurrency(reservation.valor)}</span>
               </div>
-              <div class="inline-actions">
-                ${
-                  reservation.status === "Confirmada"
-                    ? `<button class="button btn-secondary" type="button" data-cancel-reserva="${reservation.id}">Cancelar reserva</button>`
-                    : `<button class="button btn-secondary" type="button" disabled>${reservation.status}</button>`
-                }
-                <a class="button btn-primary" href="${pageUrl(`pages/agendamento.html?id=${court.id || reservation.courtId}`)}">Agendar novamente</a>
+              <p class="reservation-client"><strong>Cliente:</strong> ${reservation.cliente}</p>
+              <div class="reservation-status-note">${statusNote}</div>
+              <div class="reservation-actions">
+                ${actionButtons.join("")}
               </div>
             </article>
           `;
@@ -3044,12 +3225,32 @@
       }
 
       const reservationId = Number(button.dataset.cancelReserva);
+      const reservation = getUserReservations().find(
+        (item) => Number(item.id) === Number(reservationId)
+      );
+
+      if (!reservation || getEffectiveStatus(reservation) !== "Confirmada") {
+        return;
+      }
+
       showModal({
-        title: "Cancelar reserva",
-        text: "Tem certeza que deseja cancelar esta reserva?",
+        title: "Cancelar reserva?",
+        html: `
+          <p>Você está prestes a cancelar esta reserva. Essa ação é apenas simulada no protótipo.</p>
+          <div class="reservation-cancel-summary">
+            <div><span>Quadra</span><strong>${reservation.quadra}</strong></div>
+            <div><span>Data</span><strong>${formatDate(reservation.data)}</strong></div>
+            <div><span>Horário</span><strong>${formatBookingWindow(reservation.horario, reservation.duracao || 1)}</strong></div>
+          </div>
+        `,
         actions: [
           {
-            label: "Sim, cancelar",
+            label: "Manter reserva",
+            variant: "secondary",
+            onClick: () => closeSharedModal(),
+          },
+          {
+            label: "Confirmar cancelamento",
             variant: "primary",
             onClick: () => {
               updateReservationStatus(reservationId, "Cancelada");
@@ -3058,13 +3259,19 @@
               showToast("Reserva cancelada com sucesso.", "success");
             },
           },
-          {
-            label: "Voltar",
-            variant: "secondary",
-            onClick: () => closeSharedModal(),
-          },
         ],
       });
+    });
+
+    tabsNode?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-reservation-filter]");
+
+      if (!button) {
+        return;
+      }
+
+      activeFilter = button.dataset.reservationFilter || "todas";
+      renderReservations();
     });
 
     renderReservations();

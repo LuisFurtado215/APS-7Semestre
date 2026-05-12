@@ -27,12 +27,13 @@
             <ul class="nav-menu" id="nav-menu">
               <li><a href="../index.html">Início</a></li>
               <li><a href="quadras.html">Quadras</a></li>
-              <li><a href="login.html">Entrar</a></li>
+              <li data-auth-only hidden><a href="minhas-reservas.html">Minhas Reservas</a></li>
+              <li class="nav-mobile-only" data-guest-only><a href="login.html">Entrar</a></li>
             </ul>
           </nav>
           <div class="header-actions">
-            <span class="header-link" data-current-user>Visitante</span>
-            <a class="button button-light header-cta pill-cta" href="login.html">Entrar</a>
+            <span class="header-link" data-current-user hidden></span>
+            <a class="button button-light header-cta pill-cta" href="login.html" data-header-cta>Entrar</a>
           </div>
         </div>
       </header>
@@ -43,14 +44,32 @@
             <div class="page-hero-copy">
               <span class="eyebrow eyebrow-light">histórico e gestão</span>
               <h1>Minhas Reservas</h1>
-              <p>Visualize seus horários, acompanhe o status e cancele quando necessário.</p>
+              <p>Visualize seus horários, acompanhe o status e gerencie suas reservas.</p>
             </div>
             <a class="button btn-secondary" href="quadras.html">Buscar novas quadras</a>
           </div>
         </section>
 
-        <section class="page-section section-dark section-pattern section-pattern-dark">
-          <div class="container reservation-grid" id="reservas-list"></div>
+        <section class="page-section section-dark section-pattern section-pattern-dark minhas-reservas-section">
+          <div class="container reservations-panel">
+            <div class="reservation-tabs-card">
+              <div class="reservation-tabs-header">
+                <div>
+                  <h2>Gerencie seus horários</h2>
+                  <p>Filtre suas reservas por status.</p>
+                </div>
+              </div>
+
+              <div class="reservation-tabs" id="reservas-tabs" role="tablist" aria-label="Filtrar reservas">
+                <button class="reservation-tab is-active" type="button" data-reservation-filter="todas" role="tab" aria-selected="true">Todas <span>0</span></button>
+                <button class="reservation-tab" type="button" data-reservation-filter="proximas" role="tab" aria-selected="false">Próximas <span>0</span></button>
+                <button class="reservation-tab" type="button" data-reservation-filter="concluidas" role="tab" aria-selected="false">Concluídas <span>0</span></button>
+                <button class="reservation-tab" type="button" data-reservation-filter="canceladas" role="tab" aria-selected="false">Canceladas <span>0</span></button>
+              </div>
+            </div>
+
+            <div class="reservation-grid" id="reservas-list"></div>
+          </div>
         </section>
       </main>
 
