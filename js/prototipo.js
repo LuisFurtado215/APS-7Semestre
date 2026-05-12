@@ -34,7 +34,7 @@
     "21:00",
   ];
 
-  const MODALITIES = ["Futebol", "Vôlei", "Beach Tennis", "Tênis"];
+  const MODALITIES = ["Futebol", "Vôlei", "Basquete", "Beach Tennis", "Tênis"];
 
   const DEFAULT_SCHEDULE_TEMPLATE = {
     "08:30": { status: "Disponível" },
@@ -464,6 +464,17 @@
 
   const getCurrentUser = () => readJson(STORAGE_KEYS.currentUser, null);
 
+  const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
+
+  const getRegisteredUsers = () => readJson(STORAGE_KEYS.users, []);
+
+  const findRegisteredUser = (email, role = "cliente") =>
+    getRegisteredUsers().find(
+      (user) =>
+        normalizeEmail(user.email) === normalizeEmail(email) &&
+        String(user.role || "cliente").toLowerCase() === String(role || "cliente").toLowerCase()
+    ) || null;
+
   const setCurrentUser = (user) => {
     writeJson(STORAGE_KEYS.currentUser, user);
   };
@@ -700,6 +711,36 @@
     }
 
     return `<button class="button btn-primary" type="button" data-booking-gate="${court.id}">${actionLabel}</button>`;
+  };
+
+  const requireAuthenticatedUser = ({ redirectTo, role = "cliente", message } = {}) => {
+    const currentUser = getCurrentUser();
+    const expectedRole = String(role || "cliente").toLowerCase();
+    const currentRole =
+      currentUser?.role === "Proprietário"
+        ? "proprietario"
+        : currentUser?.role === "Cliente"
+          ? "cliente"
+          : String(currentUser?.role || "").toLowerCase();
+
+    if (
+      !currentUser ||
+      currentRole !== expectedRole ||
+      !findRegisteredUser(
+        currentUser.email,
+        expectedRole
+      )
+    ) {
+      clearSession();
+      setFlashToast(
+        message || "Entre com uma conta cadastrada para acessar esta área.",
+        "error"
+      );
+      window.location.href = redirectTo || pageUrl("login.html");
+      return null;
+    }
+
+    return currentUser;
   };
 
   const getReservationCoveredSlots = (startTime, duration = 1, slots = TIME_SLOTS) => {
@@ -1753,6 +1794,7 @@
   const getDetailFacilities = (court) => {
     const extrasByModality = {
       Futebol: ["Bebedouro", "Estacionamento", "Vestiário", "Churrasqueira"],
+      Basquete: ["Iluminação", "Bebedouro", "Arquibancada", "Vestiário"],
       Vôlei: ["Iluminação", "Bebedouro", "Estacionamento", "Vestiário"],
       "Beach Tennis": ["Iluminação", "Bebedouro", "Estacionamento", "Vestiário"],
       Tênis: ["Iluminação", "Bebedouro", "Estacionamento", "Vestiário"],
@@ -1778,7 +1820,7 @@
     }
 
     const syncSignupLinks = () => {
-      const isAdmin = typeInput.value === "admin";
+      const isAdmin = typeInput.value === "proprietario";
       const signupHref = isAdmin
         ? pageUrl("cadastro-proprietario.html")
         : pageUrl("cadastro.html");
@@ -1804,7 +1846,7 @@
       forgotPasswordLink.addEventListener("click", (event) => {
         event.preventDefault();
 
-        const isAdmin = typeInput.value === "admin";
+        const isAdmin = typeInput.value === "proprietario";
         const email = form.email.value.trim();
         const emailLabel = email ? `<strong>${email}</strong>` : "o e-mail informado";
 
@@ -1823,6 +1865,7 @@
       const email = form.email.value.trim();
       const senha = form.senha.value.trim();
       const role = typeInput.value || "cliente";
+      const registeredUser = findRegisteredUser(email, role);
 
       if (!email || !senha) {
         message.textContent = "Preencha e-mail e senha para continuar.";
@@ -1830,14 +1873,22 @@
         return;
       }
 
-      const nameFromEmail =
-        email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()) ||
-        "Usuário";
+      if (!registeredUser) {
+        message.textContent = "Conta não encontrada. Faça seu cadastro antes de entrar.";
+        message.className = "form-message is-error";
+        return;
+      }
+
+      if (registeredUser.senha && registeredUser.senha !== senha) {
+        message.textContent = "Senha incorreta para esta conta.";
+        message.className = "form-message is-error";
+        return;
+      }
 
       setCurrentUser({
-        name: role === "admin" ? "Gestor Agendei" : nameFromEmail,
-        email,
-        role: role === "admin" ? "Proprietário" : "Cliente",
+        name: registeredUser.nome || "Usuário",
+        email: registeredUser.email,
+        role: role === "proprietario" ? "Proprietário" : "Cliente",
       });
 
       writeJson(STORAGE_KEYS.session, {
@@ -1847,14 +1898,14 @@
       });
 
       setFlashToast(
-        role === "admin"
+        role === "proprietario"
           ? "Acesso administrativo liberado com sucesso."
           : "Login realizado com sucesso!",
         "success"
       );
 
       window.location.href =
-        role === "admin"
+        role === "proprietario"
           ? pageUrl("admin-dashboard.html")
           : pageUrl("quadras.html");
     });
@@ -1899,6 +1950,7 @@
         telefone: form.telefone.value.trim(),
         cidade: "Ribeirão Preto",
         role: "cliente",
+        senha,
         interesses: modalidades,
       };
 
@@ -1954,7 +2006,8 @@
         email: form.email.value.trim(),
         telefone: form.telefone.value.trim(),
         cidade: "Ribeirão Preto",
-        role: "admin",
+        role: "proprietario",
+        senha,
       };
 
       users.push(owner);
@@ -1965,7 +2018,7 @@
         role: "Proprietário",
       });
       writeJson(STORAGE_KEYS.session, {
-        role: "admin",
+        role: "proprietario",
         email: owner.email,
         updatedAt: Date.now(),
       });
@@ -2260,7 +2313,6 @@
             <div class="detail-time-feedback" id="detail-time-feedback">
               Selecione uma data para ver os horários disponíveis.
             </div>
-            <p class="booking-note">Para confirmar um horário, é necessário entrar ou criar uma conta.</p>
             <p class="detail-inline-message" id="detail-booking-message" hidden></p>
           </section>
           <div class="inline-actions detail-actions">
@@ -2694,6 +2746,7 @@
 
       createReservation({
         cliente: user?.name || "Usuário Agendei Quadras",
+        userEmail: user?.email || "",
         telefone: form.quantidadeJogadores.value ? "(16) 99999-0000" : "",
         courtId: court.id,
         quadra: court.nome,
@@ -2731,8 +2784,33 @@
       return;
     }
 
+    const currentUser = requireAuthenticatedUser({
+      redirectTo: pageUrl("login.html"),
+      role: "cliente",
+      message: "Faça login com uma conta cadastrada para acessar Minhas Reservas.",
+    });
+
+    if (!currentUser) {
+      return;
+    }
+
     const renderReservations = () => {
-      const reservations = getReservations();
+      const reservations = getReservations().filter(
+        (reservation) => normalizeEmail(reservation.userEmail) === normalizeEmail(currentUser.email)
+      );
+
+      if (!reservations.length) {
+        listNode.innerHTML = `
+          <article class="app-card empty-state-card">
+            <h3>Nenhuma reserva encontrada</h3>
+            <p>Esta conta ainda não possui reservas registradas.</p>
+            <div class="inline-actions">
+              <a class="button btn-primary" href="${pageUrl("quadras.html")}">Buscar quadras</a>
+            </div>
+          </article>
+        `;
+        return;
+      }
 
       listNode.innerHTML = reservations
         .map((reservation) => {
@@ -3207,16 +3285,18 @@
 
   const initCurrentUserBadge = () => {
     const currentUser = getCurrentUser();
-    const headerCta = document.querySelector("[data-header-cta]");
+    const headerCta =
+      document.querySelector("[data-header-cta]") ||
+      document.querySelector(".header-actions .header-cta");
+    const headerActions = headerCta?.closest(".header-actions") || null;
 
-    document.querySelectorAll("[data-current-user]").forEach((target) => {
-      if (currentUser?.name) {
-        target.textContent = currentUser.name;
-        target.hidden = false;
-      } else {
-        target.textContent = "";
-        target.hidden = true;
-      }
+    const headerUserLabels = Array.from(
+      document.querySelectorAll("[data-current-user], .header-actions .header-link")
+    );
+
+    headerUserLabels.forEach((target) => {
+      target.textContent = "";
+      target.hidden = true;
     });
 
     document.querySelectorAll("[data-auth-only]").forEach((node) => {
@@ -3229,11 +3309,80 @@
 
     if (headerCta) {
       if (currentUser) {
-        headerCta.textContent = "Minhas reservas";
-        headerCta.href = pageUrl("minhas-reservas.html");
+        const accountHref =
+          currentUser.role === "Proprietário"
+            ? pageUrl("admin-dashboard.html")
+            : pageUrl("minhas-reservas.html");
+
+        headerCta.classList.add("header-user-button");
+        headerCta.href = accountHref;
+        headerCta.setAttribute("aria-expanded", "false");
+        headerCta.setAttribute("aria-haspopup", "menu");
+        headerCta.innerHTML = `
+          <span class="header-user-chip">
+            <img class="header-user-icon" src="${assetUrl("assets/icons/user-svgrepo-com.svg")}" alt="" aria-hidden="true" />
+            <span class="header-user-name">${currentUser.name}</span>
+            <span class="header-user-caret" aria-hidden="true"></span>
+          </span>
+        `;
+
+        let dropdown = headerActions?.querySelector(".header-user-dropdown");
+
+        if (!dropdown && headerActions) {
+          dropdown = document.createElement("div");
+          dropdown.className = "header-user-dropdown";
+          dropdown.setAttribute("role", "menu");
+          dropdown.innerHTML = `
+            <a class="header-user-dropdown-item" href="${accountHref}" role="menuitem">
+              ${currentUser.role === "Proprietário" ? "Painel" : "Minhas reservas"}
+            </a>
+            <button class="header-user-dropdown-item" type="button" role="menuitem" data-logout>
+              Sair
+            </button>
+          `;
+          headerActions.appendChild(dropdown);
+        } else if (dropdown) {
+          dropdown.innerHTML = `
+            <a class="header-user-dropdown-item" href="${accountHref}" role="menuitem">
+              ${currentUser.role === "Proprietário" ? "Painel" : "Minhas reservas"}
+            </a>
+            <button class="header-user-dropdown-item" type="button" role="menuitem" data-logout>
+              Sair
+            </button>
+          `;
+        }
+
+        const closeProfileMenu = () => {
+          headerCta.setAttribute("aria-expanded", "false");
+          headerActions?.classList.remove("is-profile-open");
+        };
+
+        headerCta.addEventListener("click", (event) => {
+          event.preventDefault();
+          const isOpen = headerCta.getAttribute("aria-expanded") === "true";
+          headerCta.setAttribute("aria-expanded", String(!isOpen));
+          headerActions?.classList.toggle("is-profile-open", !isOpen);
+        });
+
+        document.addEventListener("click", (event) => {
+          if (!headerActions?.contains(event.target)) {
+            closeProfileMenu();
+          }
+        });
+
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            closeProfileMenu();
+          }
+        });
       } else {
+        headerCta.classList.remove("header-user-button");
+        headerCta.removeAttribute("aria-expanded");
+        headerCta.removeAttribute("aria-haspopup");
         headerCta.textContent = "Entrar";
         headerCta.href = pageUrl("login.html");
+        headerActions?.classList.remove("is-profile-open");
+        headerActions?.querySelector(".header-user-dropdown")?.remove();
       }
     }
 

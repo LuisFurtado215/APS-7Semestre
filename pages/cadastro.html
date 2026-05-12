@@ -49,7 +49,7 @@
               <p>Agende suas partidas em poucos cliques e acompanhe suas reservas.</p>
             </div>
 
-            <div class="form-card auth-card">
+            <div class="form-card auth-card auth-card-wide">
               <form id="cadastro-form" class="form-grid" novalidate>
                 <label class="full-width">
                   Nome completo
@@ -72,13 +72,44 @@
                   <input type="password" name="confirmarSenha" required />
                 </label>
 
-                <div class="full-width">
-                  <span class="detail-label">Modalidades de interesse</span>
-                  <div class="check-grid">
-                    <label class="check-item"><input type="checkbox" name="interesses" value="Futebol" />Futebol</label>
-                    <label class="check-item"><input type="checkbox" name="interesses" value="Vôlei" />Vôlei</label>
-                    <label class="check-item"><input type="checkbox" name="interesses" value="Beach Tennis" />Beach Tennis</label>
-                    <label class="check-item"><input type="checkbox" name="interesses" value="Tênis" />Tênis</label>
+                <div class="full-width interests-section">
+                  <span class="detail-label interests-title">Modalidades de interesse</span>
+                  <div class="interest-grid" aria-label="Modalidades de interesse">
+                    <label class="interest-option">
+                      <input type="checkbox" name="interesses" value="Futebol" />
+                      <span class="interest-card">
+                        <span class="interest-indicator" aria-hidden="true"></span>
+                        <span class="interest-label">Futebol</span>
+                      </span>
+                    </label>
+                    <label class="interest-option">
+                      <input type="checkbox" name="interesses" value="Basquete" />
+                      <span class="interest-card">
+                        <span class="interest-indicator" aria-hidden="true"></span>
+                        <span class="interest-label">Basquete</span>
+                      </span>
+                    </label>
+                    <label class="interest-option">
+                      <input type="checkbox" name="interesses" value="Vôlei" />
+                      <span class="interest-card">
+                        <span class="interest-indicator" aria-hidden="true"></span>
+                        <span class="interest-label">Vôlei</span>
+                      </span>
+                    </label>
+                    <label class="interest-option">
+                      <input type="checkbox" name="interesses" value="Beach Tennis" />
+                      <span class="interest-card">
+                        <span class="interest-indicator" aria-hidden="true"></span>
+                        <span class="interest-label">Beach Tennis</span>
+                      </span>
+                    </label>
+                    <label class="interest-option">
+                      <input type="checkbox" name="interesses" value="Tênis" />
+                      <span class="interest-card">
+                        <span class="interest-indicator" aria-hidden="true"></span>
+                        <span class="interest-label">Tênis</span>
+                      </span>
+                    </label>
                   </div>
                 </div>
 
