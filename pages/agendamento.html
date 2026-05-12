@@ -43,58 +43,110 @@
           <div class="container page-hero-copy">
             <span class="eyebrow eyebrow-light">reserva online</span>
             <h1>Agendar horário</h1>
-            <p>Escolha a data, selecione um horário livre e confirme sua reserva.</p>
+            <p>Escolha a data, selecione um horário disponível e confirme sua reserva.</p>
           </div>
         </section>
 
         <section class="page-section section-dark section-pattern section-pattern-dark">
           <div class="container app-grid">
-            <div id="agendamento-quadra"></div>
-
             <div class="booking-layout">
-              <form class="form-card" id="agendamento-form">
-                <div class="form-grid">
-                  <label class="full-width">
-                    Data da reserva
-                    <input id="booking-date" type="date" required />
-                  </label>
-                  <label>
-                    Modalidade
-                    <select id="booking-modalidade">
-                      <option>Futebol</option>
-                      <option>Basquete</option>
-                      <option>Vôlei</option>
-                      <option>Beach Tennis</option>
-                      <option>Tênis</option>
-                    </select>
-                  </label>
-                  <label>
-                    Horário inicial
-                    <div id="booking-time" class="time-picker-shell"></div>
-                  </label>
-                  <label>
-                    Até
-                    <div id="booking-end" class="time-picker-shell"></div>
-                  </label>
-                  <label>
-                    Quantidade de jogadores
-                    <input type="number" name="quantidadeJogadores" min="1" max="30" placeholder="Ex.: 8" />
-                  </label>
-                  <label class="full-width">
-                    Observações
-                    <textarea name="observacoes" rows="4" placeholder="Informações extras para a reserva"></textarea>
-                  </label>
-                </div>
+              <div class="booking-main-column">
+                <section class="booking-step-card app-card" aria-labelledby="booking-step-court-title">
+                  <div class="booking-step-heading">
+                    <span class="eyebrow eyebrow-dark">1. Conferir quadra</span>
+                    <h2 id="booking-step-court-title">Detalhes da reserva</h2>
+                    <p>Confira rapidamente a quadra escolhida antes de selecionar a data e o horário.</p>
+                  </div>
+                  <div id="agendamento-quadra"></div>
+                </section>
 
-                <div class="form-actions">
-                  <button class="button btn-primary" type="submit">Confirmar agendamento</button>
-                </div>
-              </form>
+                <form class="form-card booking-step-card" id="agendamento-form" novalidate>
+                  <div class="booking-step-heading">
+                    <span class="eyebrow eyebrow-dark">2. Escolher data e horário</span>
+                    <h2>Escolha o horário da reserva</h2>
+                    <p>Selecione a data, o horário inicial e o horário final.</p>
+                  </div>
 
-              <aside class="app-card recap-card">
-                <span class="eyebrow eyebrow-dark">RESUMO</span>
-                <h3>Sua reserva</h3>
+                  <p class="detail-inline-message booking-form-message" id="booking-form-message" hidden></p>
+
+                  <div class="form-grid booking-form-grid">
+                    <label class="detail-date-field">
+                      <span>Data da reserva</span>
+                      <div id="booking-date" class="date-picker-shell"></div>
+                    </label>
+                    <label class="detail-date-field">
+                      <span>Modalidade</span>
+                      <select id="booking-modalidade">
+                        <option>Futebol</option>
+                        <option>Basquete</option>
+                        <option>Vôlei</option>
+                        <option>Beach Tennis</option>
+                        <option>Tênis</option>
+                      </select>
+                    </label>
+                    <label class="detail-date-field">
+                      <span>Horário inicial</span>
+                      <div id="booking-time" class="time-picker-shell"></div>
+                    </label>
+                    <label class="detail-date-field">
+                      <span>Horário final</span>
+                      <div id="booking-end" class="time-picker-shell"></div>
+                    </label>
+                    <label class="detail-date-field">
+                      <span>Quantidade de jogadores</span>
+                      <input
+                        id="booking-players"
+                        type="number"
+                        name="quantidadeJogadores"
+                        min="1"
+                        max="30"
+                        inputmode="numeric"
+                        placeholder="Ex.: 8"
+                        required
+                      />
+                    </label>
+                    <div class="booking-availability-panel">
+                      <span class="detail-label">Disponibilidade simulada</span>
+                      <div class="booking-availability-grid" id="booking-availability"></div>
+                    </div>
+                    <label class="detail-date-field full-width">
+                      <span>Observações</span>
+                      <textarea
+                        name="observacoes"
+                        rows="4"
+                        placeholder="Ex.: preferência por horário, observações sobre jogadores ou necessidades especiais."
+                      ></textarea>
+                    </label>
+                  </div>
+
+                  <div class="booking-step-heading booking-step-heading-compact">
+                    <span class="eyebrow eyebrow-dark">3. Revisar e confirmar</span>
+                    <p>Confira o resumo ao lado e confirme quando todos os campos obrigatórios estiverem preenchidos.</p>
+                  </div>
+
+                  <div class="booking-note">
+                    Todos os dados desta etapa são simulados no protótipo e servem apenas para demonstrar o fluxo de reserva.
+                  </div>
+
+                  <div class="form-actions booking-form-actions">
+                    <a class="button btn-secondary" href="quadras.html">Buscar outras quadras</a>
+                    <button class="button btn-primary is-disabled" id="booking-submit" type="submit" disabled>
+                      Confirmar agendamento
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <aside class="app-card recap-card booking-summary-card">
+                <div class="booking-step-heading booking-step-heading-compact">
+                  <span class="eyebrow eyebrow-dark">RESUMO</span>
+                  <h3>Sua reserva</h3>
+                  <p>Acompanhe os dados da solicitação antes de confirmar.</p>
+                </div>
                 <div class="recap-grid" id="booking-recap"></div>
+                <div class="booking-summary-note">
+                  Esta é uma simulação de reserva para fins de protótipo.
+                </div>
               </aside>
             </div>
           </div>
