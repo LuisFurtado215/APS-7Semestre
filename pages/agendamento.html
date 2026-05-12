@@ -51,10 +51,10 @@
           <div class="container app-grid">
             <div class="booking-layout">
               <div class="booking-main-column">
-                <section class="booking-step-card app-card" aria-labelledby="booking-step-court-title">
+                <section class="booking-step-card booking-court-summary-section app-card" aria-labelledby="booking-step-court-title">
                   <div class="booking-step-heading">
                     <span class="eyebrow eyebrow-dark">1. Conferir quadra</span>
-                    <h2 id="booking-step-court-title">Detalhes da reserva</h2>
+                    <h2 id="booking-step-court-title">Quadra selecionada</h2>
                     <p>Confira rapidamente a quadra escolhida antes de selecionar a data e o horário.</p>
                   </div>
                   <div id="agendamento-quadra"></div>
@@ -92,29 +92,12 @@
                       <span>Horário final</span>
                       <div id="booking-end" class="time-picker-shell"></div>
                     </label>
-                    <label class="detail-date-field">
-                      <span>Quantidade de jogadores</span>
-                      <input
-                        id="booking-players"
-                        type="number"
-                        name="quantidadeJogadores"
-                        min="1"
-                        max="30"
-                        inputmode="numeric"
-                        placeholder="Ex.: 8"
-                        required
-                      />
-                    </label>
-                    <div class="booking-availability-panel">
-                      <span class="detail-label">Disponibilidade simulada</span>
-                      <div class="booking-availability-grid" id="booking-availability"></div>
-                    </div>
                     <label class="detail-date-field full-width">
                       <span>Observações</span>
                       <textarea
                         name="observacoes"
                         rows="4"
-                        placeholder="Ex.: preferência por horário, observações sobre jogadores ou necessidades especiais."
+                        placeholder="Ex.: observações sobre jogadores ou necessidades especiais."
                       ></textarea>
                     </label>
                   </div>
@@ -122,10 +105,6 @@
                   <div class="booking-step-heading booking-step-heading-compact">
                     <span class="eyebrow eyebrow-dark">3. Revisar e confirmar</span>
                     <p>Confira o resumo ao lado e confirme quando todos os campos obrigatórios estiverem preenchidos.</p>
-                  </div>
-
-                  <div class="booking-note">
-                    Todos os dados desta etapa são simulados no protótipo e servem apenas para demonstrar o fluxo de reserva.
                   </div>
 
                   <div class="form-actions booking-form-actions">
@@ -144,9 +123,6 @@
                   <p>Acompanhe os dados da solicitação antes de confirmar.</p>
                 </div>
                 <div class="recap-grid" id="booking-recap"></div>
-                <div class="booking-summary-note">
-                  Esta é uma simulação de reserva para fins de protótipo.
-                </div>
               </aside>
             </div>
           </div>

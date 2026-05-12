@@ -317,7 +317,7 @@
 
     const diff = timeToMinutes(endTime) - timeToMinutes(startTime);
 
-    if (diff < 60 || diff % 30 !== 0) {
+    if (diff < 60 || diff % 5 !== 0) {
       return 0;
     }
 
@@ -1220,6 +1220,10 @@
     };
 
     const open = () => {
+      if (select.disabled) {
+        return;
+      }
+
       if (typeof state.openCustomSelect === "function" && state.openCustomSelect !== close) {
         state.openCustomSelect();
       }
@@ -1236,6 +1240,13 @@
         options.find((option) => option.value === select.value) || options[0];
 
       valueNode.textContent = selectedOption?.textContent?.trim() || "Selecione";
+      trigger.disabled = select.disabled;
+      wrapper.classList.toggle("is-disabled", select.disabled);
+
+      if (select.disabled) {
+        close();
+      }
+
       panel.innerHTML = options
         .map((option) => {
           const selected = option.value === select.value;
@@ -1267,6 +1278,11 @@
       const optionButton = event.target.closest("[data-select-value]");
 
       if (!optionButton) {
+        return;
+      }
+
+      if (select.disabled) {
+        close();
         return;
       }
 
@@ -2554,10 +2570,9 @@
     const bookingTime = document.getElementById("booking-time");
     const bookingEnd = document.getElementById("booking-end");
     const recapNode = document.getElementById("booking-recap");
-    const playersInput = document.getElementById("booking-players");
     const submitButton = document.getElementById("booking-submit");
     const formMessage = document.getElementById("booking-form-message");
-    const availabilityNode = document.getElementById("booking-availability");
+    const summaryCard = document.querySelector(".booking-summary-card");
 
     if (
       !summaryNode ||
@@ -2567,10 +2582,9 @@
       !bookingTime ||
       !bookingEnd ||
       !recapNode ||
-      !playersInput ||
       !submitButton ||
       !formMessage ||
-      !availabilityNode
+      !summaryCard
     ) {
       return;
     }
@@ -2596,15 +2610,23 @@
       selectedBookingDate = requestedDate;
     }
 
-    bookingModalidade.value = court.modalidade;
-    const bookingModalidadeSelect = createCustomSelect(bookingModalidade);
+    const courtModalities = getUniqueTags([
+      ...(Array.isArray(court.modalidades) ? court.modalidades : []),
+      court.modalidade,
+    ]);
+    const allowedModalities = courtModalities.length ? courtModalities : [court.modalidade];
 
-    const playerSuggestionsByModality = {
-      "Beach Tennis": 4,
-      Futebol: 14,
-      Vôlei: 12,
-      Tênis: 4,
-    };
+    bookingModalidade.innerHTML = allowedModalities
+      .map((modalidade) => `<option value="${modalidade}">${modalidade}</option>`)
+      .join("");
+    bookingModalidade.value = allowedModalities.includes(court.modalidade)
+      ? court.modalidade
+      : allowedModalities[0];
+    bookingModalidade.disabled = allowedModalities.length <= 1;
+    bookingModalidade.title = bookingModalidade.disabled
+      ? "Esta quadra possui modalidade fixa."
+      : "Escolha a modalidade disponível para este local.";
+    const bookingModalidadeSelect = createCustomSelect(bookingModalidade);
 
     summaryNode.innerHTML = `
       <div class="app-card booking-court-card">
@@ -2617,9 +2639,9 @@
             <strong class="booking-price-badge">${formatCurrency(court.preco)}/hora</strong>
           </div>
           <div class="tag-row">${buildFacilityBadges(court.estrutura.slice(0, 4))}</div>
-          <div class="booking-court-note">
-            ${court.descricao}
-          </div>
+        </div>
+        <div class="booking-court-note">
+          ${court.descricao}
         </div>
       </div>
     `;
@@ -2638,9 +2660,9 @@
       selectedBookingDate ? getDetailScheduleForDate(court.id, selectedBookingDate) : [];
 
     const getAvailableStartOptions = (schedule) =>
-      schedule
-        .filter((slot) => slot.status === "Disponível")
-        .map((slot) => slot.horario);
+      getSelectableTimeOptions(court, schedule, 1)
+        .filter((option) => !option.disabled)
+        .map((option) => option.value);
 
     const getAvailableEndOptions = (schedule, startTime) => {
       if (!startTime) {
@@ -2648,9 +2670,12 @@
       }
 
       const startMinutes = timeToMinutes(startTime);
-      const candidateTimes = Array.from(
-        new Set([...TIME_SLOTS.filter((time) => timeToMinutes(time) > startMinutes), court.horarioFechamento])
-      ).sort((left, right) => timeToMinutes(left) - timeToMinutes(right));
+      const closeMinutes = timeToMinutes(court.horarioFechamento || "22:00");
+      const candidateTimes = [];
+
+      for (let minutes = startMinutes + 60; minutes <= closeMinutes; minutes += 60) {
+        candidateTimes.push(minutesToTime(minutes));
+      }
 
       return candidateTimes.reduce((options, endTime) => {
         const duration = getDurationFromRange(startTime, endTime);
@@ -2673,14 +2698,7 @@
       }, []);
     };
 
-    const updatePlayersConstraint = () => {
-      const suggestedLimit = playerSuggestionsByModality[bookingModalidade.value] || 10;
-      playersInput.max = String(Math.max(suggestedLimit, 1));
-      playersInput.title = `Sugestão para ${bookingModalidade.value}: até ${suggestedLimit} jogadores.`;
-    };
-
     const getReservationSnapshot = () => {
-      const playersValue = Number(playersInput.value || 0);
       const totalValue = Number(court.preco || 0) * Number(state.selectedBookingDuration || 0);
       const endTime = state.selectedBookingTime
         ? getBookingEndTime(state.selectedBookingTime, state.selectedBookingDuration)
@@ -2693,7 +2711,6 @@
           ? `${state.selectedBookingTime} às ${endTime || "Selecione"}`
           : "Selecione",
         duracao: state.selectedBookingTime ? formatDurationLabel(state.selectedBookingDuration) : "Selecione",
-        jogadores: playersValue > 0 ? playersValue : "Selecione",
         valor: totalValue,
       };
     };
@@ -2720,10 +2737,6 @@
         <div class="recap-item">
           <span>Duração</span>
           <strong>${snapshot.duracao}</strong>
-        </div>
-        <div class="recap-item">
-          <span>Jogadores</span>
-          <strong>${snapshot.jogadores}</strong>
         </div>
         <div class="recap-item is-highlight">
           <span>Valor estimado</span>
@@ -2770,32 +2783,23 @@
     });
 
     const syncSubmitButton = () => {
-      const playersValue = Number(playersInput.value || 0);
       const isReady = Boolean(
         selectedBookingDate &&
         state.selectedBookingTime &&
-        state.selectedBookingDuration >= 1 &&
-        playersValue >= 1
+        state.selectedBookingDuration >= 1
       );
 
       submitButton.disabled = !isReady;
       submitButton.classList.toggle("is-disabled", !isReady);
     };
 
-    const renderAvailability = (schedule) => {
-      availabilityNode.innerHTML = schedule.length
-        ? schedule
-            .slice(0, 8)
-            .map(
-              (slot) => `
-                <article class="booking-availability-chip ${slot.status === "Disponível" ? "is-available" : "is-unavailable"}">
-                  <strong>${slot.horario}</strong>
-                  <span>${slot.status === "Disponível" ? "Disponível" : slot.status}</span>
-                </article>
-              `
-            )
-            .join("")
-        : `<div class="time-picker-placeholder">Escolha uma data para visualizar os horários disponíveis.</div>`;
+    const syncSummaryHeight = () => {
+      if (window.innerWidth <= 1120) {
+        summaryCard.style.height = "";
+        return;
+      }
+
+      summaryCard.style.height = `${form.getBoundingClientRect().height}px`;
     };
 
     const renderSchedule = () => {
@@ -2839,24 +2843,13 @@
       });
 
       bookingDatePicker.setState({ value: selectedBookingDate, minDate: getTodayDateString() });
-      renderAvailability(schedule);
       renderRecap();
       syncSubmitButton();
+      syncSummaryHeight();
     };
 
     bookingModalidade.addEventListener("change", () => {
-      updatePlayersConstraint();
       renderRecap();
-    });
-    playersInput.addEventListener("input", () => {
-      if (Number(playersInput.value || 0) < 1 && playersInput.value !== "") {
-        setInlineMessage("Informe pelo menos 1 jogador para continuar.");
-      } else {
-        setInlineMessage();
-      }
-
-      renderRecap();
-      syncSubmitButton();
     });
 
     const requestedTime = params.get("time");
@@ -2886,21 +2879,16 @@
       state.selectedBookingDuration = requestedDuration;
     }
 
-    updatePlayersConstraint();
     bookingModalidadeSelect?.render();
     renderSchedule();
+    syncSummaryHeight();
+    window.addEventListener("resize", syncSummaryHeight);
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
 
       if (!selectedBookingDate || !state.selectedBookingTime || state.selectedBookingDuration < 1) {
         setInlineMessage("Selecione a data, o horário inicial e o horário final.");
-        syncSubmitButton();
-        return;
-      }
-
-      if (Number(playersInput.value || 0) < 1) {
-        setInlineMessage("Informe a quantidade de jogadores para confirmar a reserva.");
         syncSubmitButton();
         return;
       }
@@ -2930,26 +2918,11 @@
 
       setInlineMessage();
 
-      createReservation({
-        cliente: user?.name || "Usuário Agendei Quadras",
-        userEmail: user?.email || "",
-        telefone: form.quantidadeJogadores.value ? "(16) 99999-0000" : "",
-        courtId: court.id,
-        quadra: court.nome,
-        modalidade: bookingModalidade.value || court.modalidade,
-        data: selectedBookingDate,
-        horario: state.selectedBookingTime,
-        duracao: state.selectedBookingDuration,
-        valor: Number(court.preco || 0) * Number(state.selectedBookingDuration || 1),
-        jogadores: Number(playersInput.value || 0),
-        observacoes: form.observacoes.value.trim(),
-      });
-
       showModal({
-        title: "Reserva solicitada",
+        title: "Confirmar Reserva",
         html: `
           <div class="help-modal-content">
-            <p>Seu agendamento foi registrado no protótipo.</p>
+            <p>Confira os dados antes de concluir o agendamento.</p>
             <div class="info-grid booking-selection-grid">
               <div><span class="detail-label">Quadra</span><p>${court.nome}</p></div>
               <div><span class="detail-label">Data</span><p>${formatDate(selectedBookingDate)}</p></div>
@@ -2960,20 +2933,35 @@
         `,
         actions: [
           {
-            label: "Ver minhas reservas",
+            label: "Confirmar reserva",
             variant: "primary",
             onClick: () => {
+              createReservation({
+                cliente: user?.name || "Usuário Agendei Quadras",
+                userEmail: user?.email || "",
+                telefone: "",
+                courtId: court.id,
+                quadra: court.nome,
+                modalidade: bookingModalidade.value || court.modalidade,
+                data: selectedBookingDate,
+                horario: state.selectedBookingTime,
+                duracao: state.selectedBookingDuration,
+                valor: Number(court.preco || 0) * Number(state.selectedBookingDuration || 1),
+                observacoes: form.observacoes.value.trim(),
+              });
+
               closeSharedModal();
-              window.location.href = pageUrl("pages/minhas-reservas.html");
+              form.observacoes.value = "";
+              state.selectedBookingTime = null;
+              state.selectedBookingDuration = 1;
+              renderSchedule();
+              showToast("Reserva confirmada com sucesso.", "success");
             },
           },
           {
-            label: "Buscar outras quadras",
+            label: "Cancelar",
             variant: "secondary",
-            onClick: () => {
-              closeSharedModal();
-              window.location.href = pageUrl("pages/quadras.html");
-            },
+            onClick: () => closeSharedModal(),
           },
         ],
       });
