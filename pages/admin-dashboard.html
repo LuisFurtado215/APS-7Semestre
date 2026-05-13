@@ -20,99 +20,373 @@
             <span class="brand-mark" aria-hidden="true"><span class="brand-grid"></span></span>
             <span class="brand-text"><strong>agendei</strong><span>quadras</span></span>
           </a>
-          <nav class="main-nav" aria-label="Navegação administrativa">
+
+          <nav class="main-nav" aria-label="Navegação geral">
             <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="Abrir menu">
               <span></span><span></span><span></span>
             </button>
             <ul class="nav-menu" id="nav-menu">
-              <li><a href="admin-dashboard.html">Dashboard</a></li>
-              <li><a href="admin-quadras.html">Quadras</a></li>
-              <li><a href="admin-horarios.html">Horários</a></li>
-              <li><a href="admin-relatorios.html">Relatórios</a></li>
-              <li><a href="#" data-logout>Sair</a></li>
+              <li><a href="../index.html">Início</a></li>
+              <li><a href="quadras.html">Buscar quadras</a></li>
+              <li><a href="proprietarios.html">Para proprietários</a></li>
+              <li data-auth-only hidden><a href="#" data-logout>Sair</a></li>
             </ul>
           </nav>
+
           <div class="header-actions">
             <span class="header-link" data-current-user>Gestor</span>
-            <a class="button button-light header-cta" href="../index.html">Voltar ao início</a>
+            <a class="button button-light header-cta pill-cta" href="../index.html">Voltar ao início</a>
           </div>
         </div>
       </header>
 
-      <main class="app-main">
-        <section class="page-hero section-orange section-pattern section-pattern-light">
-          <div class="container page-hero-grid">
-            <div class="page-hero-copy">
-              <span class="eyebrow eyebrow-light">gestão esportiva</span>
-              <h1>Painel Administrativo</h1>
-              <p>Visão geral das reservas, horários disponíveis e desempenho da operação.</p>
-              <span class="floating-note" id="admin-summary-note"></span>
-            </div>
-            <div class="app-card-shell">
-              <div class="hero-mini-stat">
-                <span>Próximas ações</span>
-                <strong>Cadastre quadras, ajuste horários e acompanhe relatórios.</strong>
-              </div>
+      <main class="app-main admin-main">
+        <section class="admin-hero section-orange section-pattern section-pattern-light" id="admin-hero">
+          <div class="container admin-container admin-hero-grid">
+            <div class="admin-hero-copy">
+              <span class="eyebrow eyebrow-light" id="admin-hero-kicker">GESTÃO ESPORTIVA</span>
+              <h1 id="admin-hero-title">Painel Administrativo</h1>
+              <p id="admin-hero-subtitle">Gerencie quadras, horários, reservas e relatórios em uma única área.</p>
             </div>
           </div>
         </section>
 
-        <section class="page-section section-dark section-pattern section-pattern-dark">
-          <div class="container admin-grid">
-            <div class="stats-grid" id="admin-metrics"></div>
+        <section class="admin-workspace page-section section-dark section-pattern section-pattern-dark" id="admin-workspace">
+          <div class="container admin-container admin-hub">
+            <div class="admin-tabs-card">
+              <div class="admin-tabs-header">
+                <span class="section-kicker">PAINEL DE GESTÃO</span>
+                <h2>Escolha uma área</h2>
+                <p>Acesse rapidamente as áreas de controle da plataforma.</p>
+              </div>
 
-            <div class="quick-links-grid">
-              <a class="app-card quick-link-card" href="admin-quadras.html">
-                <span class="eyebrow eyebrow-dark">ação rápida</span>
-                <h3>Cadastrar nova quadra</h3>
-                <p>Abra o formulário de gestão e adicione novos espaços.</p>
-              </a>
-              <a class="app-card quick-link-card" href="admin-horarios.html">
-                <span class="eyebrow eyebrow-dark">ação rápida</span>
-                <h3>Gerenciar horários</h3>
-                <p>Bloqueie, libere ou consulte horários reservados.</p>
-              </a>
-              <a class="app-card quick-link-card" href="admin-relatorios.html">
-                <span class="eyebrow eyebrow-dark">ação rápida</span>
-                <h3>Ver relatórios</h3>
-                <p>Acompanhe métricas e desempenho do mês.</p>
-              </a>
+              <div class="admin-tabs" role="tablist" aria-label="Seções administrativas">
+                <button class="admin-tab is-active" type="button" data-admin-tab data-target="dashboard" role="tab" aria-selected="true">Dashboard</button>
+                <button class="admin-tab" type="button" data-admin-tab data-target="quadras" role="tab" aria-selected="false">Quadras</button>
+                <button class="admin-tab" type="button" data-admin-tab data-target="horarios" role="tab" aria-selected="false">Horários</button>
+                <button class="admin-tab" type="button" data-admin-tab data-target="relatorios" role="tab" aria-selected="false">Relatórios</button>
+              </div>
             </div>
 
-            <div class="app-grid two-columns">
-              <article class="app-card chart-card">
-                <div class="page-title-row light-surface">
-                  <div>
-                    <span class="eyebrow eyebrow-dark">gráfico visual</span>
-                    <h3>Reservas por modalidade</h3>
-                  </div>
+            <div class="admin-sections admin-shell">
+            <section class="admin-section admin-dashboard-section is-active" data-admin-section="dashboard" data-section="dashboard" aria-labelledby="admin-dashboard-title">
+              <div class="admin-section-heading admin-dashboard-heading">
+                <div class="admin-dashboard-heading-copy">
+                  <span class="section-kicker">resumo operacional</span>
+                  <h2 id="admin-dashboard-title">Dashboard</h2>
+                  <p>Acompanhe os principais números, atalhos e movimentações da operação.</p>
                 </div>
-                <div class="chart-rows" id="admin-chart"></div>
-              </article>
+              </div>
 
-              <article class="app-card table-card">
-                <div class="page-title-row light-surface">
+              <div class="admin-metrics-grid" id="admin-metrics"></div>
+
+              <div class="admin-quick-grid" aria-label="Ações rápidas">
+                <button class="admin-card admin-quick-card" type="button" data-admin-go="quadras" data-target="quadras">
+                  <span class="admin-quick-icon admin-quick-icon-court" aria-hidden="true"></span>
+                  <span class="section-kicker">ação rápida</span>
+                  <strong>Cadastrar nova quadra</strong>
+                  <p>Abra a gestão de espaços para adicionar uma nova quadra.</p>
+                  <span class="admin-action-text">Abrir gestão</span>
+                </button>
+                <button class="admin-card admin-quick-card" type="button" data-admin-go="horarios" data-target="horarios">
+                  <span class="admin-quick-icon admin-quick-icon-clock" aria-hidden="true"></span>
+                  <span class="section-kicker">ação rápida</span>
+                  <strong>Gerenciar horários</strong>
+                  <p>Consulte a grade do dia e ajuste bloqueios ou reservas.</p>
+                  <span class="admin-action-text">Ver agenda</span>
+                </button>
+                <button class="admin-card admin-quick-card" type="button" data-admin-go="relatorios" data-target="relatorios">
+                  <span class="admin-quick-icon admin-quick-icon-money" aria-hidden="true"></span>
+                  <span class="section-kicker">ação rápida</span>
+                  <strong>Ver relatórios</strong>
+                  <p>Consulte desempenho, distribuição de reservas e receita.</p>
+                  <span class="admin-action-text">Analisar dados</span>
+                </button>
+              </div>
+
+              <div class="admin-content-grid admin-dashboard-lower-grid">
+                <article class="admin-card admin-chart-card">
+                  <div class="admin-card-heading">
+                    <div>
+                      <span class="section-kicker">gráfico visual</span>
+                      <h3>Reservas por modalidade</h3>
+                      <p>Distribuição consolidada das reservas confirmadas.</p>
+                    </div>
+                  </div>
+                  <div class="chart-rows admin-chart-rows" id="admin-chart"></div>
+                </article>
+
+                <article class="admin-card admin-list-card">
+                  <div class="admin-card-heading">
+                    <div>
+                      <span class="section-kicker">agenda</span>
+                      <h3>Agenda da operação</h3>
+                      <p>Selecione um dia para visualizar os horários.</p>
+                    </div>
+                  </div>
+                  <div class="admin-reservation-list" id="admin-upcoming"></div>
+                </article>
+              </div>
+            </section>
+
+            <section class="admin-section" data-admin-section="quadras" data-section="quadras" aria-labelledby="admin-quadras-title" hidden>
+              <div class="admin-section-heading">
+                <div>
+                  <span class="section-kicker">cadastro e gestão</span>
+                  <h2 id="admin-quadras-title">Gerenciar Quadras</h2>
+                </div>
+                <p>Cadastre, edite e organize os espaços disponíveis no protótipo.</p>
+              </div>
+
+              <form class="admin-card admin-form-card" id="admin-court-form" novalidate>
+                <div class="admin-card-heading">
                   <div>
-                    <span class="eyebrow eyebrow-dark">próximas reservas</span>
-                    <h3>Agenda em destaque</h3>
+                    <span class="section-kicker">formulário</span>
+                    <h3 id="admin-court-form-title">Cadastrar nova quadra</h3>
                   </div>
                 </div>
-                <div class="table-responsive">
-                  <table class="data-table">
+
+                <div class="form-grid admin-form-grid">
+                  <label>
+                    Nome da quadra
+                    <input type="text" name="nome" placeholder="Ex.: Arena Central" required />
+                  </label>
+                  <label>
+                    Modalidade
+                    <select name="modalidade" required>
+                      <option value="">Selecione</option>
+                      <option>Futebol</option>
+                      <option>Basquete</option>
+                      <option>Vôlei</option>
+                      <option>Beach Tennis</option>
+                      <option>Tênis</option>
+                    </select>
+                  </label>
+                  <label>
+                    Bairro
+                    <select name="bairro" required>
+                      <option value="">Selecione</option>
+                      <option>Jardim Irajá</option>
+                      <option>Centro</option>
+                      <option>Ribeirânia</option>
+                      <option>Bonfim Paulista</option>
+                      <option>Nova Aliança</option>
+                    </select>
+                  </label>
+                  <label>
+                    Endereço
+                    <input type="text" name="endereco" placeholder="Rua, número e complemento" />
+                  </label>
+                  <label>
+                    Preço por hora
+                    <input type="number" name="preco" min="0" step="5" placeholder="120" />
+                  </label>
+                  <label>
+                    Horário de abertura
+                    <input type="time" name="abertura" value="08:00" />
+                  </label>
+                  <label>
+                    Horário de fechamento
+                    <input type="time" name="fechamento" value="22:00" />
+                  </label>
+                  <label>
+                    Status
+                    <select name="status">
+                      <option>Ativa</option>
+                      <option>Inativa</option>
+                    </select>
+                  </label>
+                  <div class="full-width">
+                    <span class="detail-label">Estrutura disponível</span>
+                    <div class="admin-facility-grid">
+                      <label class="facility-option"><input type="checkbox" name="estrutura" value="Iluminação" /><span>Iluminação</span></label>
+                      <label class="facility-option"><input type="checkbox" name="estrutura" value="Vestiário" /><span>Vestiário</span></label>
+                      <label class="facility-option"><input type="checkbox" name="estrutura" value="Estacionamento" /><span>Estacionamento</span></label>
+                      <label class="facility-option"><input type="checkbox" name="estrutura" value="Bebedouro" /><span>Bebedouro</span></label>
+                      <label class="facility-option"><input type="checkbox" name="estrutura" value="Lanchonete" /><span>Lanchonete</span></label>
+                      <label class="facility-option"><input type="checkbox" name="estrutura" value="Quadra coberta" /><span>Quadra coberta</span></label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-actions admin-form-actions">
+                  <button class="button btn-secondary" type="reset">Limpar</button>
+                  <button class="button btn-primary" type="submit">Salvar quadra</button>
+                </div>
+              </form>
+
+              <article class="admin-card admin-table-card">
+                <div class="admin-card-heading">
+                  <div>
+                    <span class="section-kicker">cadastros</span>
+                    <h3>Quadras registradas</h3>
+                  </div>
+                </div>
+                <div class="table-responsive admin-table-wrap">
+                  <table class="data-table admin-table">
                     <thead>
                       <tr>
-                        <th>Cliente</th>
-                        <th>Quadra</th>
+                        <th>Nome</th>
                         <th>Modalidade</th>
-                        <th>Data</th>
-                        <th>Horário</th>
+                        <th>Bairro</th>
+                        <th>Preço</th>
                         <th>Status</th>
+                        <th>Ações</th>
                       </tr>
                     </thead>
-                    <tbody id="admin-upcoming"></tbody>
+                    <tbody id="admin-courts-table"></tbody>
                   </table>
                 </div>
               </article>
+            </section>
+
+            <section class="admin-section" data-admin-section="horarios" data-section="horarios" aria-labelledby="admin-horarios-title" hidden>
+              <div class="admin-section-heading">
+                <div>
+                  <span class="section-kicker">controle operacional</span>
+                  <h2 id="admin-horarios-title">Gerenciar Horários</h2>
+                </div>
+                <p>Filtre uma quadra, escolha a data e ajuste a disponibilidade da grade diária.</p>
+              </div>
+
+              <article class="admin-card admin-filter-card">
+                <div class="admin-card-heading">
+                  <div>
+                    <span class="section-kicker">agenda</span>
+                    <h3>Filtros de agenda</h3>
+                  </div>
+                </div>
+                <div class="toolbar-grid compact admin-filter-grid">
+                  <label class="toolbar-field">
+                    Selecionar quadra
+                    <select id="admin-schedule-court"></select>
+                  </label>
+                  <label class="toolbar-field">
+                    Selecionar data
+                    <div id="admin-schedule-date" class="date-picker-shell"></div>
+                  </label>
+                </div>
+              </article>
+
+              <article class="admin-card admin-schedule-card">
+                <div class="admin-card-heading">
+                  <div>
+                    <span class="section-kicker">grade diária</span>
+                    <h3>Status por horário</h3>
+                  </div>
+                </div>
+                <div class="admin-schedule-grid" id="admin-schedule-grid"></div>
+              </article>
+            </section>
+
+            <section class="admin-section" data-admin-section="relatorios" data-section="relatorios" aria-labelledby="admin-relatorios-title" hidden>
+              <div class="admin-section-heading">
+                <div>
+                  <span class="section-kicker">inteligência da operação</span>
+                  <h2 id="admin-relatorios-title">Relatórios</h2>
+                </div>
+                <p>Indicadores, gráficos e resumo financeiro em uma visão compacta.</p>
+              </div>
+
+              <article class="admin-card admin-filter-card">
+                <div class="admin-card-heading">
+                  <div>
+                    <span class="section-kicker">filtros visuais</span>
+                    <h3>Recorte do relatório</h3>
+                  </div>
+                </div>
+                <div class="toolbar-grid compact admin-filter-grid report-filter-grid">
+                  <label class="toolbar-field">
+                    Período
+                    <select>
+                      <option>Maio/2026</option>
+                      <option>Abril/2026</option>
+                      <option>Últimos 30 dias</option>
+                    </select>
+                  </label>
+                  <label class="toolbar-field">
+                    Modalidade
+                    <select>
+                      <option>Todas</option>
+                      <option>Futebol</option>
+                      <option>Basquete</option>
+                      <option>Vôlei</option>
+                      <option>Beach Tennis</option>
+                      <option>Tênis</option>
+                    </select>
+                  </label>
+                  <label class="toolbar-field">
+                    Quadra
+                    <select>
+                      <option>Todas as quadras</option>
+                      <option>Arena Beach RP</option>
+                      <option>Quadra Society Norte</option>
+                      <option>Tennis Club Ribeirão</option>
+                    </select>
+                  </label>
+                  <div class="admin-filter-action">
+                    <button class="button btn-primary" id="export-report" type="button">Exportar relatório</button>
+                  </div>
+                </div>
+              </article>
+
+              <div class="admin-metrics-grid" id="report-metrics"></div>
+
+              <div class="admin-content-grid">
+                <article class="admin-card admin-chart-card">
+                  <div class="admin-card-heading">
+                    <div>
+                      <span class="section-kicker">modalidades</span>
+                      <h3>Reservas por modalidade</h3>
+                    </div>
+                  </div>
+                  <div class="chart-rows admin-chart-rows" id="report-modality-chart"></div>
+                </article>
+
+                <article class="admin-card admin-chart-card">
+                  <div class="admin-card-heading">
+                    <div>
+                      <span class="section-kicker">períodos</span>
+                      <h3>Reservas por período do dia</h3>
+                    </div>
+                  </div>
+                  <div class="chart-rows admin-chart-rows" id="report-period-chart"></div>
+                </article>
+              </div>
+
+              <article class="admin-card admin-chart-card">
+                <div class="admin-card-heading">
+                  <div>
+                    <span class="section-kicker">faturamento</span>
+                    <h3>Faturamento por semana</h3>
+                  </div>
+                </div>
+                <div class="chart-rows admin-chart-rows admin-chart-rows-wide" id="report-revenue-chart"></div>
+              </article>
+
+              <article class="admin-card admin-table-card">
+                <div class="admin-card-heading">
+                  <div>
+                    <span class="section-kicker">resumo</span>
+                    <h3>Resumo de reservas</h3>
+                  </div>
+                </div>
+                <div class="table-responsive admin-table-wrap">
+                  <table class="data-table admin-table">
+                    <thead>
+                      <tr>
+                        <th>Data</th>
+                        <th>Quadra</th>
+                        <th>Modalidade</th>
+                        <th>Quantidade de reservas</th>
+                        <th>Receita estimada</th>
+                      </tr>
+                    </thead>
+                    <tbody id="report-table"></tbody>
+                  </table>
+                </div>
+              </article>
+            </section>
             </div>
           </div>
         </section>
@@ -143,7 +417,7 @@
           <div class="footer-links-group">
             <strong>Gestão</strong>
             <a href="admin-dashboard.html">Área administrativa</a>
-            <a href="admin-relatorios.html">Relatórios</a>
+            <a href="admin-dashboard.html#relatorios">Relatórios</a>
             <a href="cadastro-proprietario.html">Cadastro de quadras</a>
           </div>
         </div>
