@@ -3837,6 +3837,16 @@ body[data-page="admin-dashboard"] {
   text-align: right;
 }
 
+.admin-section-note {
+  display: block;
+  max-width: 620px;
+  margin-top: 0.45rem;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 0.88rem;
+  font-weight: 760;
+  line-height: 1.45;
+}
+
 .admin-dashboard-section {
   gap: 1.1rem;
 }
@@ -4695,13 +4705,329 @@ body[data-page="admin-dashboard"] {
   box-shadow: 0 0 0 3px rgba(242, 101, 60, 0.12);
 }
 
+.admin-court-builder {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-court-stepper {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding: 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-court-stepper button {
+  min-height: 44px;
+  padding: 0.68rem 0.8rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.15;
+  text-align: center;
+  transition:
+    transform var(--transition),
+    background-color var(--transition),
+    color var(--transition),
+    box-shadow var(--transition);
+}
+
+.admin-court-stepper button:hover,
+.admin-court-stepper button:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--color-light);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.admin-court-stepper button.is-active {
+  background: linear-gradient(135deg, var(--color-primary-deep), var(--color-primary-soft));
+  color: var(--color-light);
+  box-shadow: 0 12px 24px rgba(242, 101, 60, 0.2);
+}
+
+.admin-court-stepper button.is-completed {
+  color: var(--color-light);
+}
+
+.admin-court-panel {
+  position: relative;
+  overflow: visible;
+}
+
+.admin-court-panel[hidden] {
+  display: none !important;
+}
+
+.admin-court-split-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.admin-court-subheading {
+  margin-top: 1.1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(23, 28, 32, 0.07);
+}
+
 .admin-form-grid {
   gap: 0.95rem;
 }
 
+.admin-court-data-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-hours-grid {
+  grid-template-columns: repeat(3, minmax(150px, 1fr));
+}
+
+.admin-pause-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-photo-dropzone {
+  display: grid !important;
+  place-items: center;
+  min-height: 210px;
+  padding: 1rem;
+  border: 1px dashed rgba(230, 75, 42, 0.38);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(248, 250, 252, 0.94)),
+    rgba(242, 101, 60, 0.04);
+  color: var(--color-dark) !important;
+  cursor: pointer;
+  text-align: center;
+  transition:
+    transform var(--transition),
+    border-color var(--transition),
+    background-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.admin-photo-dropzone:hover,
+.admin-photo-dropzone:focus-within {
+  transform: translateY(-2px);
+  border-color: var(--color-primary-deep);
+  box-shadow: 0 14px 28px rgba(230, 75, 42, 0.1);
+}
+
+.admin-photo-dropzone input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-photo-dropzone span {
+  max-width: 26ch;
+  color: var(--color-dark);
+  font-family: "Fredoka", sans-serif;
+  font-size: 1.08rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.admin-photo-dropzone small {
+  margin-top: 0.35rem;
+  color: var(--color-muted-dark);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.admin-photo-preview-grid {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.admin-photo-empty {
+  padding: 0.82rem;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 16px;
+  background: #f8fafc;
+  color: var(--color-muted-dark);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.admin-photo-thumb {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.62rem;
+  border: 1px solid rgba(226, 232, 240, 0.94);
+  border-radius: 18px;
+  background: #fbfcfe;
+}
+
+.admin-photo-thumb.is-cover {
+  border-color: rgba(230, 75, 42, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(230, 75, 42, 0.12);
+}
+
+.admin-photo-thumb img {
+  width: 112px;
+  aspect-ratio: 16 / 10;
+  border-radius: 14px;
+  object-fit: cover;
+  background: #e8edf2;
+}
+
+.admin-photo-thumb div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+  min-width: 0;
+}
+
+.admin-photo-thumb span {
+  flex-basis: 100%;
+  color: var(--color-primary-deep);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-photo-thumb button,
+.admin-weekday-presets button,
+.admin-table-action {
+  min-height: 30px;
+  padding: 0.34rem 0.54rem;
+  border-radius: 999px;
+  background: rgba(23, 28, 32, 0.06);
+  color: var(--color-text-dark);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition:
+    transform var(--transition),
+    background-color var(--transition),
+    color var(--transition);
+}
+
+.admin-photo-thumb button:hover,
+.admin-photo-thumb button:focus-visible,
+.admin-weekday-presets button:hover,
+.admin-weekday-presets button:focus-visible,
+.admin-table-action:hover,
+.admin-table-action:focus-visible {
+  background: rgba(242, 101, 60, 0.12);
+  color: var(--color-primary-deep);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.admin-operating-block,
+.admin-pause-card {
+  display: grid;
+  gap: 0.58rem;
+  padding: 0.78rem;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.admin-operating-block p,
+.admin-pause-card p {
+  color: var(--color-muted-dark);
+  font-size: 0.82rem;
+  font-weight: 780;
+  line-height: 1.45;
+}
+
+.admin-weekday-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.34rem;
+}
+
+.admin-weekday-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.38rem;
+}
+
+.admin-choice-chip {
+  position: relative;
+  cursor: pointer;
+}
+
+.admin-choice-chip input,
+.facility-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-choice-chip span,
+.facility-option span {
+  position: relative;
+}
+
+.admin-choice-chip span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0.56rem 0.42rem;
+  border: 1px solid rgba(226, 232, 240, 0.96);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--color-text-dark);
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-align: center;
+  transition:
+    transform var(--transition),
+    border-color var(--transition),
+    background-color var(--transition),
+    color var(--transition);
+}
+
+.admin-choice-chip:hover span,
+.admin-choice-chip:focus-within span {
+  transform: translateY(-2px);
+  border-color: rgba(242, 101, 60, 0.34);
+}
+
+.admin-choice-chip input:checked + span {
+  border-color: var(--color-primary-deep);
+  background: linear-gradient(135deg, rgba(230, 75, 42, 0.94), rgba(255, 132, 95, 0.94));
+  color: var(--color-light);
+}
+
+.admin-toggle-row {
+  display: flex !important;
+  align-items: center;
+  gap: 0.7rem !important;
+  color: var(--color-dark) !important;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.admin-toggle-row input {
+  width: 44px;
+  height: 24px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 999px;
+  accent-color: var(--color-primary-deep);
+}
+
 .admin-facility-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.7rem;
   margin-top: 0.55rem;
 }
@@ -4709,12 +5035,6 @@ body[data-page="admin-dashboard"] {
 .facility-option {
   position: relative;
   cursor: pointer;
-}
-
-.facility-option input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
 }
 
 .facility-option span {
@@ -4745,8 +5065,15 @@ body[data-page="admin-dashboard"] {
 
 .facility-option input:checked + span {
   border-color: var(--color-primary-deep);
-  background: linear-gradient(135deg, rgba(230, 75, 42, 0.92), rgba(255, 132, 95, 0.92));
-  color: var(--color-light);
+  background: rgba(242, 101, 60, 0.12);
+  color: var(--color-primary-deep);
+  box-shadow: inset 0 0 0 1px rgba(230, 75, 42, 0.16);
+}
+
+.admin-court-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.7rem;
 }
 
 .admin-form-actions {
@@ -4883,6 +5210,63 @@ body[data-page="admin-dashboard"] {
   font-weight: 800;
 }
 
+.admin-court-cell {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: center;
+  min-width: 190px;
+}
+
+.admin-court-cell img {
+  width: 56px;
+  aspect-ratio: 16 / 11;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #e8edf2;
+}
+
+.admin-court-cell strong {
+  color: var(--color-dark);
+  line-height: 1.12;
+}
+
+.admin-operating-summary {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 170px;
+}
+
+.admin-operating-summary span {
+  color: var(--color-text-dark);
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.admin-operating-summary small {
+  color: var(--color-muted-dark);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.admin-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 210px;
+}
+
+.admin-table-action.danger {
+  background: rgba(198, 59, 45, 0.1);
+  color: #b83528;
+}
+
+.admin-table-action.danger:hover,
+.admin-table-action.danger:focus-visible {
+  background: #b83528;
+  color: var(--color-light);
+}
+
 .admin-table tbody tr {
   transition: background-color var(--transition);
 }
@@ -4924,6 +5308,19 @@ body[data-page="admin-dashboard"] {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .admin-court-split-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-hours-grid {
+    grid-template-columns: repeat(3, minmax(130px, 1fr));
+  }
+
+  .admin-weekday-grid,
+  .admin-facility-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .report-filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -4943,8 +5340,13 @@ body[data-page="admin-dashboard"] {
   .admin-metrics-grid,
   .admin-quick-grid,
   .admin-form-grid,
-  .admin-facility-grid,
   .report-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-court-data-grid,
+  .admin-hours-grid,
+  .admin-pause-grid {
     grid-template-columns: 1fr;
   }
 
@@ -4967,6 +5369,61 @@ body[data-page="admin-dashboard"] {
 
   .admin-hero {
     padding-bottom: 1.6rem;
+  }
+
+  .admin-table {
+    min-width: 0;
+  }
+
+  .admin-table thead {
+    display: none;
+  }
+
+  .admin-table,
+  .admin-table tbody,
+  .admin-table tr,
+  .admin-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .admin-table tbody {
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .admin-table tr {
+    padding: 0.9rem;
+    border: 1px solid rgba(226, 232, 240, 0.96);
+    border-radius: 18px;
+    background: #fff;
+  }
+
+  .admin-table td {
+    display: grid;
+    grid-template-columns: minmax(92px, 0.35fr) minmax(0, 1fr);
+    gap: 0.65rem;
+    align-items: start;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid rgba(23, 28, 32, 0.06);
+  }
+
+  .admin-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .admin-table td::before {
+    content: attr(data-label);
+    color: #7a8791;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .admin-court-cell,
+  .admin-table-actions {
+    min-width: 0;
   }
 }
 
@@ -4995,6 +5452,35 @@ body[data-page="admin-dashboard"] {
   .admin-tab {
     min-height: 40px;
     padding-inline: 0.9rem;
+  }
+
+  .admin-court-form-actions {
+    display: grid;
+  }
+
+  .admin-court-stepper {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-court-form-actions .button {
+    width: 100%;
+  }
+
+  .admin-weekday-grid,
+  .admin-facility-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-photo-thumb {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-photo-thumb img {
+    width: 100%;
+  }
+
+  .admin-table td {
+    grid-template-columns: 1fr;
   }
 
   .admin-schedule-slot-head {
@@ -5054,10 +5540,6 @@ body[data-page="admin-dashboard"] {
   .admin-chart-rows .chart-bar {
     grid-column: 1 / -1;
     grid-row: 2;
-  }
-
-  .admin-table {
-    min-width: 660px;
   }
 
   .admin-filter-action .button {

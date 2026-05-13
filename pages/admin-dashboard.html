@@ -134,84 +134,196 @@
                 <div>
                   <span class="section-kicker">cadastro e gestão</span>
                   <h2 id="admin-quadras-title">Gerenciar Quadras</h2>
+                  <small class="admin-section-note">Configure informações, fotos, horários de funcionamento e disponibilidade da quadra.</small>
                 </div>
                 <p>Cadastre, edite e organize os espaços disponíveis no protótipo.</p>
               </div>
 
-              <form class="admin-card admin-form-card" id="admin-court-form" novalidate>
-                <div class="admin-card-heading">
-                  <div>
-                    <span class="section-kicker">formulário</span>
-                    <h3 id="admin-court-form-title">Cadastrar nova quadra</h3>
-                  </div>
+              <form class="admin-court-builder" id="admin-court-form" novalidate>
+                <div class="admin-court-stepper" aria-label="Etapas do cadastro da quadra">
+                  <button class="is-active" type="button" data-court-step-nav="dados">1. Dados da quadra</button>
+                  <button type="button" data-court-step-nav="funcionamento">2. Funcionamento</button>
+                  <button type="button" data-court-step-nav="fotos">3. Fotos da quadra</button>
                 </div>
 
-                <div class="form-grid admin-form-grid">
-                  <label>
-                    Nome da quadra
-                    <input type="text" name="nome" placeholder="Ex.: Arena Central" required />
-                  </label>
-                  <label>
-                    Modalidade
-                    <select name="modalidade" required>
-                      <option value="">Selecione</option>
-                      <option>Futebol</option>
-                      <option>Basquete</option>
-                      <option>Vôlei</option>
-                      <option>Beach Tennis</option>
-                      <option>Tênis</option>
-                    </select>
-                  </label>
-                  <label>
-                    Bairro
-                    <select name="bairro" required>
-                      <option value="">Selecione</option>
-                      <option>Jardim Irajá</option>
-                      <option>Centro</option>
-                      <option>Ribeirânia</option>
-                      <option>Bonfim Paulista</option>
-                      <option>Nova Aliança</option>
-                    </select>
-                  </label>
-                  <label>
-                    Endereço
-                    <input type="text" name="endereco" placeholder="Rua, número e complemento" />
-                  </label>
-                  <label>
-                    Preço por hora
-                    <input type="number" name="preco" min="0" step="5" placeholder="120" />
-                  </label>
-                  <label>
-                    Horário de abertura
-                    <input type="time" name="abertura" value="08:00" />
-                  </label>
-                  <label>
-                    Horário de fechamento
-                    <input type="time" name="fechamento" value="22:00" />
-                  </label>
-                  <label>
-                    Status
-                    <select name="status">
-                      <option>Ativa</option>
-                      <option>Inativa</option>
-                    </select>
-                  </label>
-                  <div class="full-width">
-                    <span class="detail-label">Estrutura disponível</span>
-                    <div class="admin-facility-grid">
-                      <label class="facility-option"><input type="checkbox" name="estrutura" value="Iluminação" /><span>Iluminação</span></label>
-                      <label class="facility-option"><input type="checkbox" name="estrutura" value="Vestiário" /><span>Vestiário</span></label>
-                      <label class="facility-option"><input type="checkbox" name="estrutura" value="Estacionamento" /><span>Estacionamento</span></label>
-                      <label class="facility-option"><input type="checkbox" name="estrutura" value="Bebedouro" /><span>Bebedouro</span></label>
-                      <label class="facility-option"><input type="checkbox" name="estrutura" value="Lanchonete" /><span>Lanchonete</span></label>
-                      <label class="facility-option"><input type="checkbox" name="estrutura" value="Quadra coberta" /><span>Quadra coberta</span></label>
+                <article class="admin-card admin-form-card admin-court-panel" data-court-step="dados">
+                  <div class="admin-card-heading">
+                    <div>
+                      <span class="section-kicker">dados</span>
+                      <h3 id="admin-court-form-title">Dados da quadra</h3>
                     </div>
                   </div>
-                </div>
 
-                <div class="form-actions admin-form-actions">
-                  <button class="button btn-secondary" type="reset">Limpar</button>
-                  <button class="button btn-primary" type="submit">Salvar quadra</button>
+                  <div class="form-grid admin-form-grid admin-court-data-grid">
+                    <label>
+                      Nome da quadra
+                      <input type="text" name="nome" placeholder="Ex.: Arena Central" required />
+                    </label>
+                    <label>
+                      Modalidade
+                      <select name="modalidade" required>
+                        <option value="">Selecione</option>
+                        <option>Futebol</option>
+                        <option>Basquete</option>
+                        <option>Vôlei</option>
+                        <option>Beach Tennis</option>
+                        <option>Tênis</option>
+                      </select>
+                    </label>
+                    <label>
+                      Bairro
+                      <select name="bairro" required>
+                        <option value="">Selecione</option>
+                        <option>Jardim Irajá</option>
+                        <option>Centro</option>
+                        <option>Ribeirânia</option>
+                        <option>Bonfim Paulista</option>
+                        <option>Nova Aliança</option>
+                      </select>
+                    </label>
+                    <label>
+                      Endereço
+                      <input type="text" name="endereco" placeholder="Rua, número e complemento" />
+                    </label>
+                    <label>
+                      Preço por hora
+                      <input type="number" name="preco" min="0" step="5" placeholder="Ex.: 120" required />
+                    </label>
+                    <label>
+                      Status
+                      <select name="status">
+                        <option>Ativa</option>
+                        <option>Inativa</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="admin-card-heading admin-court-subheading">
+                    <div>
+                      <span class="section-kicker">estrutura</span>
+                      <h3>Estrutura disponível</h3>
+                    </div>
+                  </div>
+
+                  <div class="admin-facility-grid">
+                    <label class="facility-option"><input type="checkbox" name="estrutura" value="Iluminação" /><span>Colete de Jogo</span></label>
+                    <label class="facility-option"><input type="checkbox" name="estrutura" value="Vestiário" /><span>Vestiário</span></label>
+                    <label class="facility-option"><input type="checkbox" name="estrutura" value="Estacionamento" /><span>Estacionamento</span></label>
+                    <label class="facility-option"><input type="checkbox" name="estrutura" value="Bebedouro" /><span>Bebedouro</span></label>
+                    <label class="facility-option"><input type="checkbox" name="estrutura" value="Lanchonete" /><span>Lanchonete</span></label>
+                    <label class="facility-option"><input type="checkbox" name="estrutura" value="Quadra coberta" /><span>Quadra coberta</span></label>
+                    <label class="facility-option"><input type="checkbox" name="estrutura" value="Churrasqueira" /><span>Churrasqueira</span></label>
+                    <label class="facility-option"><input type="checkbox" name="estrutura" value="Arquibancada" /><span>Arquibancada</span></label>
+                  </div>
+
+                  <div class="admin-court-form-actions">
+                    <button class="button btn-primary" type="button" data-court-next>Próxima etapa</button>
+                  </div>
+                </article>
+
+                <div class="admin-court-split-grid">
+                  <article class="admin-card admin-form-card admin-court-panel" data-court-step="fotos" hidden>
+                    <div class="admin-card-heading">
+                      <div>
+                        <span class="section-kicker">vitrine</span>
+                        <h3>Fotos da quadra</h3>
+                        <p>Adicione imagens para exibir na busca e nos detalhes da quadra.</p>
+                      </div>
+                    </div>
+
+                    <label class="admin-photo-dropzone" for="admin-court-photos">
+                      <input id="admin-court-photos" type="file" name="fotos" accept="image/*" multiple />
+                      <span>Clique para enviar fotos ou arraste imagens aqui</span>
+                      <small>Use imagens horizontais para melhor visualização.</small>
+                    </label>
+                    <div class="admin-photo-preview-grid" id="admin-photo-preview" aria-live="polite"></div>
+
+                    <div class="admin-court-form-actions">
+                      <button class="button btn-secondary" type="button" data-court-prev>Voltar</button>
+                      <button class="button btn-primary" type="submit" id="admin-court-submit">Salvar quadra</button>
+                    </div>
+                  </article>
+
+                  <article class="admin-card admin-form-card admin-court-panel" data-court-step="funcionamento" hidden>
+                    <div class="admin-card-heading">
+                      <div>
+                        <span class="section-kicker">agenda</span>
+                        <h3>Funcionamento</h3>
+                        <p>Defina os dias e horários em que a quadra poderá receber reservas.</p>
+                      </div>
+                    </div>
+
+                    <div class="admin-operating-block">
+                      <div>
+                        <strong class="detail-label">Dias de funcionamento</strong>
+                        <p>Dias desmarcados ficam indisponíveis para reservas.</p>
+                      </div>
+                      <div class="admin-weekday-presets">
+                        <button type="button" data-weekday-preset="all">Abrir todos os dias</button>
+                        <button type="button" data-weekday-preset="weekdays">Seg a Sex</button>
+                        <button type="button" data-weekday-preset="weekend">Fins de semana</button>
+                        <button type="button" data-weekday-preset="clear">Limpar</button>
+                      </div>
+                      <div class="admin-weekday-grid">
+                        <label class="admin-choice-chip"><input type="checkbox" name="diasFuncionamento" value="dom" checked /><span>Domingo</span></label>
+                        <label class="admin-choice-chip"><input type="checkbox" name="diasFuncionamento" value="seg" checked /><span>Segunda</span></label>
+                        <label class="admin-choice-chip"><input type="checkbox" name="diasFuncionamento" value="ter" checked /><span>Terça</span></label>
+                        <label class="admin-choice-chip"><input type="checkbox" name="diasFuncionamento" value="qua" checked /><span>Quarta</span></label>
+                        <label class="admin-choice-chip"><input type="checkbox" name="diasFuncionamento" value="qui" checked /><span>Quinta</span></label>
+                        <label class="admin-choice-chip"><input type="checkbox" name="diasFuncionamento" value="sex" checked /><span>Sexta</span></label>
+                        <label class="admin-choice-chip"><input type="checkbox" name="diasFuncionamento" value="sab" checked /><span>Sábado</span></label>
+                      </div>
+                    </div>
+
+                    <div class="form-grid admin-form-grid admin-hours-grid">
+                      <label>
+                        Horário de abertura
+                        <input type="hidden" name="abertura" value="08:00" />
+                        <div id="admin-open-time-picker" class="time-picker-shell"></div>
+                      </label>
+                      <label>
+                        Horário de fechamento
+                        <input type="hidden" name="fechamento" value="22:00" />
+                        <div id="admin-close-time-picker" class="time-picker-shell"></div>
+                      </label>
+                      <label>
+                        Duração padrão da reserva
+                        <select name="duracaoPadrao">
+                          <option value="30">30 minutos</option>
+                          <option value="60" selected>1 hora</option>
+                          <option value="90">1h30</option>
+                          <option value="120">2 horas</option>
+                        </select>
+                      </label>
+                    </div>
+                    <p class="form-message" id="admin-hours-message" aria-live="polite"></p>
+
+                    <div class="admin-pause-card">
+                      <label class="admin-toggle-row">
+                        <input type="checkbox" name="pausaAtiva" />
+                        <span>A quadra possui horário de pausa</span>
+                      </label>
+                      <p id="admin-pause-helper">Sem pausa: todos os horários dentro do funcionamento ficam disponíveis.</p>
+                      <div class="form-grid admin-form-grid admin-pause-grid" id="admin-pause-fields" hidden>
+                        <label>
+                          Início da pausa
+                          <input type="hidden" name="pausaInicio" value="12:00" />
+                          <div id="admin-pause-start-picker" class="time-picker-shell"></div>
+                        </label>
+                        <label>
+                          Fim da pausa
+                          <input type="hidden" name="pausaFim" value="14:30" />
+                          <div id="admin-pause-end-picker" class="time-picker-shell"></div>
+                        </label>
+                      </div>
+                      <p class="form-message" id="admin-pause-message" aria-live="polite"></p>
+                    </div>
+
+                    <div class="admin-court-form-actions">
+                      <button class="button btn-secondary" type="button" data-court-prev>Voltar</button>
+                      <button class="button btn-primary" type="button" data-court-next>Próxima etapa</button>
+                    </div>
+                  </article>
                 </div>
               </form>
 
@@ -226,9 +338,10 @@
                   <table class="data-table admin-table">
                     <thead>
                       <tr>
-                        <th>Nome</th>
+                        <th>Quadra</th>
                         <th>Modalidade</th>
                         <th>Bairro</th>
+                        <th>Funcionamento</th>
                         <th>Preço</th>
                         <th>Status</th>
                         <th>Ações</th>

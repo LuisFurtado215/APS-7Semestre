@@ -217,6 +217,14 @@
     return "assets/img/placeholder-6.jpg";
   };
 
+  const WEEKDAY_KEYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"];
+  const DEFAULT_OPERATING_DAYS = ["seg", "ter", "qua", "qui", "sex", "sab", "dom"];
+
+  const getWeekdayKeyFromDate = (value) => {
+    const date = parseDateString(value);
+    return date ? WEEKDAY_KEYS[date.getDay()] : "";
+  };
+
   const formatCurrency = (value) =>
     new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -455,7 +463,8 @@
   const rootUrl = (path) => `${basePath}${String(path).replace(/^\//, "")}`;
   const pageUrl = (path) =>
     `${basePath}pages/${String(path).replace(/^\/?pages\//, "").replace(/^\//, "")}`;
-  const assetUrl = (path) => `${basePath}${path}`;
+  const assetUrl = (path) =>
+    /^(data:|https?:|blob:)/.test(String(path || "")) ? path : `${basePath}${path}`;
 
   const statusClass = (status) => {
     const map = {
@@ -493,9 +502,9 @@
 
           return {
             ...court,
-            imagem: baseCourt.imagem,
-            horarioAbertura: baseCourt.horarioAbertura,
-            horarioFechamento: baseCourt.horarioFechamento,
+            imagem: court.imagem || baseCourt.imagem,
+            horarioAbertura: court.horarioAbertura || baseCourt.horarioAbertura,
+            horarioFechamento: court.horarioFechamento || baseCourt.horarioFechamento,
           };
         })
       );
@@ -532,10 +541,18 @@
     readJson(STORAGE_KEYS.managedCourts, BASE_COURTS).map((court) => ({
       ...court,
       estrutura: Array.isArray(court.estrutura) ? court.estrutura : [],
+      fotos: Array.isArray(court.fotos) ? court.fotos : court.imagem ? [court.imagem] : [],
       imagem: court.imagem || getBaseCourtImage(court.modalidade),
       status: court.status || "Ativa",
       horarioAbertura: court.horarioAbertura || "08:00",
       horarioFechamento: court.horarioFechamento || "22:00",
+      diasFuncionamento: Array.isArray(court.diasFuncionamento)
+        ? court.diasFuncionamento
+        : DEFAULT_OPERATING_DAYS,
+      pausaAtiva: Boolean(court.pausaAtiva),
+      pausaInicio: court.pausaInicio || "12:00",
+      pausaFim: court.pausaFim || "14:30",
+      duracaoPadrao: String(court.duracaoPadrao || "60"),
     }));
 
   const setManagedCourts = (courts) => {
@@ -1664,11 +1681,23 @@
     const key = `${courtId}_${date}`;
     const reservations = getReservations();
     const court = getCourtById(courtId);
+    const weekdayKey = getWeekdayKeyFromDate(date);
+    const isOperatingDay = !court || !weekdayKey || court.diasFuncionamento.includes(weekdayKey);
+    const openingMinutes = timeToMinutes(court?.horarioAbertura || "08:00");
+    const closingMinutes = timeToMinutes(court?.horarioFechamento || "22:00");
+    const pauseStartMinutes = timeToMinutes(court?.pausaInicio || "12:00");
+    const pauseEndMinutes = timeToMinutes(court?.pausaFim || "14:30");
     const schedule = TIME_SLOTS.map((time) => {
       const template = DEFAULT_SCHEDULE_TEMPLATE[time] || { status: "Disponível" };
+      const slotMinutes = timeToMinutes(time);
+      const isOutsideHours = slotMinutes < openingMinutes || slotMinutes >= closingMinutes;
+      const isPaused =
+        court?.pausaAtiva && slotMinutes >= pauseStartMinutes && slotMinutes < pauseEndMinutes;
+      const generatedStatus =
+        !isOperatingDay || isOutsideHours || isPaused ? "Bloqueado" : template.status;
       return {
         horario: time,
-        status: template.status,
+        status: generatedStatus,
         cliente: template.cliente || "",
         telefone: template.telefone || "",
         modalidade: template.modalidade || court?.modalidade || "",
@@ -3888,15 +3917,323 @@
     const form = document.getElementById("admin-court-form");
     const tableNode = document.getElementById("admin-courts-table");
     const formTitle = document.getElementById("admin-court-form-title");
+    const submitButton = document.getElementById("admin-court-submit");
+    const photoInput = document.getElementById("admin-court-photos");
+    const photoPreview = document.getElementById("admin-photo-preview");
+    const hoursMessage = document.getElementById("admin-hours-message");
+    const pauseMessage = document.getElementById("admin-pause-message");
+    const pauseHelper = document.getElementById("admin-pause-helper");
+    const pauseFields = document.getElementById("admin-pause-fields");
+    const openTimePickerRoot = document.getElementById("admin-open-time-picker");
+    const closeTimePickerRoot = document.getElementById("admin-close-time-picker");
+    const pauseStartPickerRoot = document.getElementById("admin-pause-start-picker");
+    const pauseEndPickerRoot = document.getElementById("admin-pause-end-picker");
+    const stepPanels = Array.from(form.querySelectorAll("[data-court-step]"));
+    const stepNavButtons = Array.from(form.querySelectorAll("[data-court-step-nav]"));
+    const prevStepButtons = Array.from(form.querySelectorAll("[data-court-prev]"));
+    const nextStepButtons = Array.from(form.querySelectorAll("[data-court-next]"));
 
     if (!form || !tableNode) {
       return;
     }
 
+    const weekdayLabels = {
+      seg: "Seg",
+      ter: "Ter",
+      qua: "Qua",
+      qui: "Qui",
+      sex: "Sex",
+      sab: "Sáb",
+      dom: "Dom",
+    };
+    const weekdayPresets = {
+      all: DEFAULT_OPERATING_DAYS,
+      weekdays: ["seg", "ter", "qua", "qui", "sex"],
+      weekend: ["sab", "dom"],
+      clear: [],
+    };
+    const courtSteps = ["dados", "funcionamento", "fotos"];
+    let activeCourtStep = "dados";
+    let photoDraft = [];
+    const operatingTimeOptions = TIME_SLOTS.map((slot) => ({
+      value: slot,
+      disabled: false,
+    }));
+    const pauseTimeOptions = Array.from({ length: 24 * 12 }, (_, index) => ({
+      value: minutesToTime(index * 5),
+      disabled: false,
+    }));
+    const openTimePicker = createCustomTimePicker(openTimePickerRoot, {
+      placeholder: "Abertura",
+      onChange: (nextValue) => {
+        form.abertura.value = nextValue;
+        syncOperatingTimePickers();
+        validateCourtHours();
+      },
+    });
+    const closeTimePicker = createCustomTimePicker(closeTimePickerRoot, {
+      placeholder: "Fechamento",
+      onChange: (nextValue) => {
+        form.fechamento.value = nextValue;
+        syncOperatingTimePickers();
+        validateCourtHours();
+      },
+    });
+    const pauseStartPicker = createCustomTimePicker(pauseStartPickerRoot, {
+      placeholder: "Início",
+      onChange: (nextValue) => {
+        form.pausaInicio.value = nextValue;
+        validateCourtHours();
+        syncPausePickers();
+      },
+    });
+    const pauseEndPicker = createCustomTimePicker(pauseEndPickerRoot, {
+      placeholder: "Fim",
+      onChange: (nextValue) => {
+        form.pausaFim.value = nextValue;
+        validateCourtHours();
+        syncPausePickers();
+      },
+    });
+
     const collectStructure = () =>
       Array.from(form.querySelectorAll('input[name="estrutura"]:checked')).map(
         (input) => input.value
       );
+
+    const collectOperatingDays = () =>
+      Array.from(form.querySelectorAll('input[name="diasFuncionamento"]:checked')).map(
+        (input) => input.value
+      );
+
+    const setOperatingDays = (values) => {
+      const selected = new Set(values);
+      form.querySelectorAll('input[name="diasFuncionamento"]').forEach((checkbox) => {
+        checkbox.checked = selected.has(checkbox.value);
+      });
+    };
+
+    const setMessage = (node, message = "", type = "error") => {
+      if (!node) {
+        return;
+      }
+
+      node.textContent = message;
+      node.classList.toggle("is-error", Boolean(message && type === "error"));
+      node.classList.toggle("is-success", Boolean(message && type === "success"));
+    };
+
+    const formatOperatingDays = (days = []) => {
+      const normalized = days.length ? days : DEFAULT_OPERATING_DAYS;
+      const daySet = new Set(normalized);
+
+      if (DEFAULT_OPERATING_DAYS.every((day) => daySet.has(day))) {
+        return "Todos os dias";
+      }
+
+      if (["seg", "ter", "qua", "qui", "sex"].every((day) => daySet.has(day)) && !daySet.has("sab") && !daySet.has("dom")) {
+        return "Seg a Sex";
+      }
+
+      if (daySet.size === 2 && daySet.has("sab") && daySet.has("dom")) {
+        return "Fins de semana";
+      }
+
+      return normalized.map((day) => weekdayLabels[day] || day).join(", ");
+    };
+
+    const renderPhotoPreview = () => {
+      if (!photoPreview) {
+        return;
+      }
+
+      photoPreview.innerHTML = photoDraft.length
+        ? photoDraft
+            .map(
+              (photo, index) => `
+                <article class="admin-photo-thumb ${index === 0 ? "is-cover" : ""}">
+                  <img src="${assetUrl(photo)}" alt="Prévia da quadra ${index + 1}" />
+                  <div>
+                    <span>${index === 0 ? "Capa" : "Foto"}</span>
+                    <button type="button" data-photo-cover="${index}">Usar como capa</button>
+                    <button type="button" data-photo-remove="${index}">Remover</button>
+                  </div>
+                </article>
+              `
+            )
+            .join("")
+        : '<div class="admin-photo-empty">Nenhuma foto selecionada. O placeholder padrão será usado.</div>';
+    };
+
+    const readSelectedPhotos = (files) =>
+      Promise.all(
+        Array.from(files || [])
+          .filter((file) => file.type.startsWith("image/"))
+          .map(
+            (file) =>
+              new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => resolve("");
+                reader.readAsDataURL(file);
+              })
+          )
+      ).then((items) => items.filter(Boolean));
+
+    const syncPauseFields = () => {
+      const hasPause = Boolean(form.pausaAtiva?.checked);
+
+      if (pauseFields) {
+        pauseFields.hidden = !hasPause;
+      }
+
+      if (pauseHelper) {
+        pauseHelper.textContent = hasPause
+          ? "Horários dentro da pausa ficam indisponíveis na simulação de agenda."
+          : "Sem pausa: todos os horários dentro do funcionamento ficam disponíveis.";
+      }
+
+      syncPausePickers();
+    };
+
+    function syncOperatingTimePickers() {
+      const openingMinutes = timeToMinutes(form.abertura.value || "08:00");
+
+      openTimePicker.setState({
+        options: operatingTimeOptions,
+        value: form.abertura.value || "",
+        disabled: false,
+      });
+      closeTimePicker.setState({
+        options: operatingTimeOptions.map((option) => ({
+          ...option,
+          disabled: timeToMinutes(option.value) <= openingMinutes,
+        })),
+        value: form.fechamento.value || "",
+        disabled: false,
+      });
+    }
+
+    function syncPausePickers() {
+      const hasPause = Boolean(form.pausaAtiva?.checked);
+
+      pauseStartPicker.setState({
+        options: pauseTimeOptions,
+        value: form.pausaInicio.value || "",
+        disabled: !hasPause,
+      });
+      pauseEndPicker.setState({
+        options: pauseTimeOptions,
+        value: form.pausaFim.value || "",
+        disabled: !hasPause,
+      });
+    }
+
+    const syncClosingMinTime = () => {
+      if (form.abertura && form.fechamento) {
+        form.fechamento.min = form.abertura.value || "00:00";
+      }
+
+      syncOperatingTimePickers();
+    };
+
+    const validateCourtHours = () => {
+      setMessage(hoursMessage);
+      setMessage(pauseMessage);
+
+      if (form.abertura.value && form.fechamento.value && timeToMinutes(form.fechamento.value) <= timeToMinutes(form.abertura.value)) {
+        setMessage(hoursMessage, "O horário de fechamento precisa ser posterior ao de abertura.");
+        return false;
+      }
+
+      if (form.pausaAtiva?.checked) {
+        const opening = timeToMinutes(form.abertura.value || "08:00");
+        const closing = timeToMinutes(form.fechamento.value || "22:00");
+        const pauseStart = timeToMinutes(form.pausaInicio.value || "12:00");
+        const pauseEnd = timeToMinutes(form.pausaFim.value || "14:30");
+
+        if (pauseEnd <= pauseStart) {
+          setMessage(pauseMessage, "O fim da pausa precisa ser depois do início.");
+          return false;
+        }
+
+        if (pauseStart < opening || pauseEnd > closing) {
+          setMessage(pauseMessage, "A pausa precisa estar dentro do horário de funcionamento.");
+          return false;
+        }
+      }
+
+      return true;
+    };
+
+    const validateCourtStep = (step) => {
+      if (step === "dados") {
+        if (!form.nome.value.trim() || !form.modalidade.value || !form.bairro.value || !form.preco.value) {
+          showToast("Preencha os dados da quadra para avançar.", "error");
+          return false;
+        }
+      }
+
+      if (step === "funcionamento") {
+        if (!collectOperatingDays().length) {
+          showToast("Selecione pelo menos um dia de funcionamento.", "error");
+          return false;
+        }
+
+        if (!validateCourtHours()) {
+          showToast("Revise os horários de funcionamento.", "error");
+          return false;
+        }
+      }
+
+      return true;
+    };
+
+    const renderCourtStep = () => {
+      stepPanels.forEach((panel) => {
+        const isActive = panel.dataset.courtStep === activeCourtStep;
+        panel.hidden = !isActive;
+        panel.classList.toggle("is-active", isActive);
+      });
+
+      stepNavButtons.forEach((button) => {
+        const step = button.dataset.courtStepNav;
+        const isActive = step === activeCourtStep;
+        const isCompleted = courtSteps.indexOf(step) < courtSteps.indexOf(activeCourtStep);
+
+        button.classList.toggle("is-active", isActive);
+        button.classList.toggle("is-completed", isCompleted);
+        button.setAttribute("aria-current", isActive ? "step" : "false");
+      });
+
+      prevStepButtons.forEach((button) => {
+        button.hidden = activeCourtStep === courtSteps[0];
+      });
+
+      nextStepButtons.forEach((button) => {
+        button.hidden = activeCourtStep === courtSteps[courtSteps.length - 1];
+      });
+
+      if (submitButton) {
+        submitButton.hidden = activeCourtStep !== courtSteps[courtSteps.length - 1];
+      }
+    };
+
+    const goToCourtStep = (step, { validateCurrent = false } = {}) => {
+      const targetIndex = courtSteps.indexOf(step);
+      const currentIndex = courtSteps.indexOf(activeCourtStep);
+
+      if (targetIndex < 0) {
+        return;
+      }
+
+      if (validateCurrent && targetIndex > currentIndex && !validateCourtStep(activeCourtStep)) {
+        return;
+      }
+
+      activeCourtStep = step;
+      renderCourtStep();
+    };
 
     const fillForm = (court) => {
       form.nome.value = court.nome;
@@ -3907,41 +4244,58 @@
       form.abertura.value = court.horarioAbertura;
       form.fechamento.value = court.horarioFechamento;
       form.status.value = court.status;
+      form.duracaoPadrao.value = String(court.duracaoPadrao || "60");
+      form.pausaAtiva.checked = Boolean(court.pausaAtiva);
+      form.pausaInicio.value = court.pausaInicio || "12:00";
+      form.pausaFim.value = court.pausaFim || "14:30";
+      photoDraft = Array.isArray(court.fotos) && court.fotos.length ? [...court.fotos] : [court.imagem];
+      setOperatingDays(court.diasFuncionamento || DEFAULT_OPERATING_DAYS);
       form.querySelectorAll('input[name="estrutura"]').forEach((checkbox) => {
         checkbox.checked = court.estrutura.includes(checkbox.value);
       });
       state.adminEditingCourtId = court.id;
       syncCustomizedSelects(form);
+      syncPauseFields();
+      syncClosingMinTime();
+      renderPhotoPreview();
 
       if (formTitle) {
         formTitle.textContent = `Editando: ${court.nome}`;
       }
 
+      if (submitButton) {
+        submitButton.textContent = "Salvar alterações";
+      }
+
+      goToCourtStep("dados");
       form.scrollIntoView({ behavior: "smooth", block: "start" });
     };
 
-    const resetFormState = () => {
+    const resetFormState = ({ resetFields = true } = {}) => {
       state.adminEditingCourtId = null;
-      form.reset();
+
+      if (resetFields) {
+        form.reset();
+      }
+
+      photoDraft = [];
+      setOperatingDays(DEFAULT_OPERATING_DAYS);
+      syncPauseFields();
+      syncClosingMinTime();
       syncCustomizedSelects(form);
+      renderPhotoPreview();
+      setMessage(hoursMessage);
+      setMessage(pauseMessage);
 
       if (formTitle) {
-        formTitle.textContent = "Cadastrar nova quadra";
-      }
-    };
-
-    const syncClosingMinTime = () => {
-      if (form.abertura && form.fechamento) {
-        form.fechamento.min = form.abertura.value || "00:00";
-      }
-    };
-
-    const hasValidCourtHours = () => {
-      if (!form.abertura.value || !form.fechamento.value) {
-        return true;
+        formTitle.textContent = "Dados da quadra";
       }
 
-      return timeToMinutes(form.fechamento.value) > timeToMinutes(form.abertura.value);
+      if (submitButton) {
+        submitButton.textContent = "Salvar quadra";
+      }
+
+      goToCourtStep("dados");
     };
 
     const renderTable = () => {
@@ -3949,22 +4303,38 @@
 
       tableNode.innerHTML = rows
         .map(
-          (court) => `
+          (court) => {
+            const operatingDays = formatOperatingDays(court.diasFuncionamento);
+            const pauseInfo = court.pausaAtiva
+              ? `<small>Pausa: ${court.pausaInicio} às ${court.pausaFim}</small>`
+              : "";
+            return `
             <tr>
-              <td>${court.nome}</td>
-              <td>${court.modalidade}</td>
-              <td>${court.bairro}</td>
-              <td>${formatCurrency(court.preco)}</td>
-              <td><span class="status-pill ${statusClass(court.status)}">${court.status}</span></td>
-              <td>
-                <div class="table-actions">
-                  <button type="button" class="table-link" data-edit-court="${court.id}">Editar</button>
-                  <button type="button" class="table-link" data-toggle-court="${court.id}">${court.status === "Ativa" ? "Inativar" : "Ativar"}</button>
-                  <button type="button" class="table-link danger" data-delete-court="${court.id}">Excluir</button>
+              <td data-label="Quadra">
+                <div class="admin-court-cell">
+                  <img src="${assetUrl(court.imagem)}" alt="${court.nome}" />
+                  <strong>${court.nome}</strong>
+                </div>
+              </td>
+              <td data-label="Modalidade">${court.modalidade}</td>
+              <td data-label="Bairro">${court.bairro}</td>
+              <td data-label="Funcionamento">
+                <div class="admin-operating-summary">
+                  <span>${operatingDays} • ${court.horarioAbertura} às ${court.horarioFechamento}</span>
+                  ${pauseInfo}
+                </div>
+              </td>
+              <td data-label="Preço">${formatCurrency(court.preco)}</td>
+              <td data-label="Status"><span class="status-pill ${statusClass(court.status)}">${court.status}</span></td>
+              <td data-label="Ações">
+                <div class="table-actions admin-table-actions">
+                  <button type="button" class="admin-table-action" data-edit-court="${court.id}">Editar</button>
+                  <button type="button" class="admin-table-action danger" data-delete-court="${court.id}">Excluir</button>
                 </div>
               </td>
             </tr>
-          `
+          `;
+          }
         )
         .join("");
     };
@@ -3972,17 +4342,36 @@
     form.addEventListener("submit", (event) => {
       event.preventDefault();
 
-      if (!form.nome.value.trim() || !form.modalidade.value || !form.bairro.value) {
+      if (activeCourtStep !== courtSteps[courtSteps.length - 1]) {
+        const currentIndex = courtSteps.indexOf(activeCourtStep);
+        goToCourtStep(courtSteps[Math.min(currentIndex + 1, courtSteps.length - 1)], {
+          validateCurrent: true,
+        });
+        return;
+      }
+
+      const operatingDays = collectOperatingDays();
+
+      if (!form.nome.value.trim() || !form.modalidade.value || !form.bairro.value || !form.preco.value) {
         showToast("Preencha os dados principais da quadra.", "error");
         return;
       }
 
-      if (!hasValidCourtHours()) {
-        showToast("O horário de fechamento precisa ser posterior ao de abertura.", "error");
+      if (!operatingDays.length) {
+        showToast("Selecione pelo menos um dia de funcionamento.", "error");
+        return;
+      }
+
+      if (!validateCourtHours()) {
+        showToast("Revise os horários de funcionamento.", "error");
         return;
       }
 
       const courts = getManagedCourts();
+      const existingCourt = courts.find(
+        (court) => Number(court.id) === Number(state.adminEditingCourtId)
+      );
+      const coverImage = photoDraft[0] || existingCourt?.imagem || getBaseCourtImage(form.modalidade.value);
       const payload = {
         id:
           state.adminEditingCourtId ||
@@ -3997,13 +4386,20 @@
         avaliacao: 4.7,
         horarioAbertura: form.abertura.value || "08:00",
         horarioFechamento: form.fechamento.value || "22:00",
+        diasFuncionamento: operatingDays,
+        pausaAtiva: Boolean(form.pausaAtiva?.checked),
+        pausaInicio: form.pausaInicio.value || "12:00",
+        pausaFim: form.pausaFim.value || "14:30",
+        duracaoPadrao: form.duracaoPadrao.value || "60",
         descricao:
           "Quadra cadastrada pelo gestor para disponibilização na plataforma.",
-        imagem: getBaseCourtImage(form.modalidade.value),
+        fotos: photoDraft,
+        imagem: coverImage,
         status: form.status.value || "Ativa",
       };
+      const isEditing = Boolean(state.adminEditingCourtId);
 
-      const updatedCourts = state.adminEditingCourtId
+      const updatedCourts = isEditing
         ? courts.map((court) =>
             Number(court.id) === Number(state.adminEditingCourtId) ? payload : court
           )
@@ -4013,26 +4409,106 @@
       renderTable();
       resetFormState();
       notifyAdminDataChange();
-      showToast("Quadra salva com sucesso.", "success");
+      showToast(isEditing ? "Quadra atualizada no protótipo." : "Quadra salva no protótipo.", "success");
     });
 
     form.addEventListener("reset", () => {
       window.setTimeout(() => {
-        state.adminEditingCourtId = null;
-        syncCustomizedSelects(form);
-        syncClosingMinTime();
-
-        if (formTitle) {
-          formTitle.textContent = "Cadastrar nova quadra";
-        }
+        resetFormState({ resetFields: false });
       }, 0);
     });
 
-    form.abertura?.addEventListener("change", syncClosingMinTime);
+    form.abertura?.addEventListener("change", () => {
+      syncClosingMinTime();
+      validateCourtHours();
+    });
+    form.fechamento?.addEventListener("change", validateCourtHours);
+    form.pausaAtiva?.addEventListener("change", () => {
+      syncPauseFields();
+      validateCourtHours();
+    });
+    form.pausaInicio?.addEventListener("change", validateCourtHours);
+    form.pausaFim?.addEventListener("change", validateCourtHours);
+
+    form.querySelectorAll("[data-weekday-preset]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setOperatingDays(weekdayPresets[button.dataset.weekdayPreset] || []);
+      });
+    });
+
+    prevStepButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const currentIndex = courtSteps.indexOf(activeCourtStep);
+        goToCourtStep(courtSteps[Math.max(currentIndex - 1, 0)]);
+      });
+    });
+
+    nextStepButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const currentIndex = courtSteps.indexOf(activeCourtStep);
+        goToCourtStep(courtSteps[Math.min(currentIndex + 1, courtSteps.length - 1)], {
+          validateCurrent: true,
+        });
+      });
+    });
+
+    stepNavButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const targetStep = button.dataset.courtStepNav;
+        const targetIndex = courtSteps.indexOf(targetStep);
+        const currentIndex = courtSteps.indexOf(activeCourtStep);
+
+        if (targetIndex > currentIndex + 1) {
+          showToast("Complete a etapa atual antes de avançar.", "error");
+          return;
+        }
+
+        goToCourtStep(targetStep, {
+          validateCurrent: targetIndex > currentIndex,
+        });
+      });
+    });
+
+    photoInput?.addEventListener("change", async () => {
+      const nextPhotos = await readSelectedPhotos(photoInput.files);
+      photoDraft = [...photoDraft, ...nextPhotos].slice(0, 6);
+      photoInput.value = "";
+      renderPhotoPreview();
+    });
+
+    photoInput?.closest(".admin-photo-dropzone")?.addEventListener("dragover", (event) => {
+      event.preventDefault();
+    });
+
+    photoInput?.closest(".admin-photo-dropzone")?.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      const nextPhotos = await readSelectedPhotos(event.dataTransfer?.files);
+      photoDraft = [...photoDraft, ...nextPhotos].slice(0, 6);
+      renderPhotoPreview();
+    });
+
+    photoPreview?.addEventListener("click", (event) => {
+      const removeButton = event.target.closest("[data-photo-remove]");
+      const coverButton = event.target.closest("[data-photo-cover]");
+
+      if (removeButton) {
+        photoDraft.splice(Number(removeButton.dataset.photoRemove), 1);
+        renderPhotoPreview();
+      }
+
+      if (coverButton) {
+        const index = Number(coverButton.dataset.photoCover);
+        const [photo] = photoDraft.splice(index, 1);
+
+        if (photo) {
+          photoDraft.unshift(photo);
+          renderPhotoPreview();
+        }
+      }
+    });
 
     tableNode.addEventListener("click", (event) => {
       const editButton = event.target.closest("[data-edit-court]");
-      const toggleButton = event.target.closest("[data-toggle-court]");
       const deleteButton = event.target.closest("[data-delete-court]");
       const courts = getManagedCourts();
 
@@ -4046,27 +4522,14 @@
         }
       }
 
-      if (toggleButton) {
-        const updated = courts.map((court) =>
-          Number(court.id) === Number(toggleButton.dataset.toggleCourt)
-            ? { ...court, status: court.status === "Ativa" ? "Inativa" : "Ativa" }
-            : court
-        );
-
-        setManagedCourts(updated);
-        renderTable();
-        notifyAdminDataChange();
-        showToast("Status da quadra atualizado.", "success");
-      }
-
       if (deleteButton) {
         const court = courts.find(
           (item) => Number(item.id) === Number(deleteButton.dataset.deleteCourt)
         );
 
         showModal({
-          title: "Excluir quadra",
-          html: `<p>Deseja remover <strong>${court?.nome || "esta quadra"}</strong> da listagem administrativa do protótipo?</p>`,
+          title: "Excluir quadra?",
+          html: `<p>Essa ação removerá <strong>${court?.nome || "esta quadra"}</strong> da lista do protótipo.</p>`,
           actions: [
             {
               label: "Cancelar",
@@ -4086,7 +4549,7 @@
                 renderTable();
                 notifyAdminDataChange();
                 closeSharedModal();
-                showToast("Quadra removida da listagem administrativa.", "success");
+                showToast("Quadra excluída do protótipo.", "success");
               },
             },
           ],
@@ -4095,7 +4558,6 @@
     });
 
     resetFormState();
-    syncClosingMinTime();
     renderTable();
   };
 
