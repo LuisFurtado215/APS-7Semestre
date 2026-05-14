@@ -462,107 +462,131 @@
                 <div class="admin-schedule-periods" id="admin-schedule-grid"></div>
               </article>
 
-              <article class="admin-card admin-schedule-exceptions-card">
-                <div class="admin-card-heading">
-                  <div>
-                    <span class="section-kicker">exceções futuras</span>
-                    <h3>Bloqueios e exceções cadastradas</h3>
-                  </div>
-                </div>
-                <div class="admin-exception-list" id="admin-exception-list"></div>
-              </article>
             </section>
 
             <section class="admin-section" data-admin-section="relatorios" data-section="relatorios" aria-labelledby="admin-relatorios-title" hidden>
-              <div class="admin-section-heading">
+              <div class="admin-section-heading report-section-heading">
                 <div>
                   <span class="section-kicker">inteligência da operação</span>
                   <h2 id="admin-relatorios-title">Relatórios</h2>
+                  <p class="report-section-lead">Analise reservas, ocupação, receita e desempenho das quadras em tempo real.</p>
                 </div>
-                <p>Indicadores, gráficos e resumo financeiro em uma visão compacta.</p>
+                <div class="report-heading-note" id="report-summary-note"></div>
               </div>
 
-              <article class="admin-card admin-filter-card">
-                <div class="admin-card-heading">
+              <article class="admin-card admin-filter-card report-filter-shell">
+                <div class="admin-card-heading report-filter-heading">
                   <div>
-                    <span class="section-kicker">filtros visuais</span>
-                    <h3>Recorte do relatório</h3>
+                    <span class="section-kicker">filtros inteligentes</span>
+                    <h3>Recorte executivo</h3>
+                    <p>Combine período, quadra e modalidade para enxergar desempenho e gargalos rapidamente.</p>
                   </div>
                 </div>
                 <div class="toolbar-grid compact admin-filter-grid report-filter-grid">
                   <label class="toolbar-field">
                     Período
-                    <select>
-                      <option>Maio/2026</option>
-                      <option>Abril/2026</option>
-                      <option>Últimos 30 dias</option>
+                    <select id="report-period-filter">
+                      <option value="current-month">Mês atual</option>
+                      <option value="previous-month">Mês anterior</option>
+                      <option value="last-30-days">Últimos 30 dias</option>
                     </select>
                   </label>
                   <label class="toolbar-field">
                     Modalidade
-                    <select>
-                      <option>Todas</option>
-                      <option>Futebol</option>
-                      <option>Basquete</option>
-                      <option>Vôlei</option>
-                      <option>Beach Tennis</option>
-                      <option>Tênis</option>
+                    <select id="report-modality-filter">
+                      <option value="Todas">Todas</option>
+                      <option value="Futebol">Futebol</option>
+                      <option value="Basquete">Basquete</option>
+                      <option value="Vôlei">Vôlei</option>
+                      <option value="Beach Tennis">Beach Tennis</option>
+                      <option value="Tênis">Tênis</option>
                     </select>
                   </label>
                   <label class="toolbar-field">
                     Quadra
-                    <select>
-                      <option>Todas as quadras</option>
-                      <option>Arena Beach RP</option>
-                      <option>Quadra Society Norte</option>
-                      <option>Tennis Club Ribeirão</option>
+                    <select id="report-court-filter">
+                      <option value="Todas">Todas as quadras</option>
                     </select>
                   </label>
-                  <div class="admin-filter-action">
+                  <div class="report-filter-actions">
                     <button class="button btn-primary" id="export-report" type="button">Exportar relatório</button>
+                    <button class="button btn-secondary" id="report-clear" type="button">Limpar</button>
+                    <button class="button btn-primary" id="report-apply" type="button">Aplicar filtros</button>
                   </div>
                 </div>
               </article>
 
-              <div class="admin-metrics-grid" id="report-metrics"></div>
+              <div class="admin-metrics-grid report-metrics-grid" id="report-metrics"></div>
 
-              <div class="admin-content-grid">
-                <article class="admin-card admin-chart-card">
+              <div class="report-analytics-grid">
+                <article class="admin-card admin-chart-card report-chart-card report-chart-card-wide">
                   <div class="admin-card-heading">
                     <div>
-                      <span class="section-kicker">modalidades</span>
-                      <h3>Reservas por modalidade</h3>
+                      <span class="section-kicker">desempenho</span>
+                      <h3>Desempenho por modalidade</h3>
+                      <p>Volume de reservas dentro do recorte aplicado.</p>
                     </div>
                   </div>
-                  <div class="chart-rows admin-chart-rows" id="report-modality-chart"></div>
+                  <div class="chart-rows admin-chart-rows report-chart-rows" id="report-modality-chart"></div>
                 </article>
 
-                <article class="admin-card admin-chart-card">
+                <article class="admin-card admin-chart-card report-chart-card">
                   <div class="admin-card-heading">
                     <div>
-                      <span class="section-kicker">períodos</span>
+                      <span class="section-kicker">jornada do cliente</span>
                       <h3>Reservas por período do dia</h3>
+                      <p>Veja rapidamente onde a demanda concentra.</p>
                     </div>
                   </div>
-                  <div class="chart-rows admin-chart-rows" id="report-period-chart"></div>
+                  <div class="chart-rows admin-chart-rows report-chart-rows" id="report-period-chart"></div>
+                  <div class="report-period-insights" id="report-period-insights"></div>
+                </article>
+
+                <article class="admin-card admin-chart-card report-chart-card">
+                  <div class="admin-card-heading">
+                    <div>
+                      <span class="section-kicker">receita</span>
+                      <h3>Receita por semana</h3>
+                      <p>Faixas semanais reais de 7 dias dentro do período filtrado.</p>
+                    </div>
+                  </div>
+                  <div class="chart-rows admin-chart-rows report-chart-rows" id="report-week-chart"></div>
+                </article>
+
+                <article class="admin-card admin-list-card report-ranking-card">
+                  <div class="admin-card-heading">
+                    <div>
+                      <span class="section-kicker">ranking</span>
+                      <h3>Ranking de quadras</h3>
+                      <p>Quais espaços mais convertem reservas e receita.</p>
+                    </div>
+                  </div>
+                  <div class="report-ranking-list" id="report-court-ranking"></div>
                 </article>
               </div>
 
-              <article class="admin-card admin-chart-card">
+              <article class="admin-card admin-table-card report-table-card">
                 <div class="admin-card-heading">
                   <div>
-                    <span class="section-kicker">faturamento</span>
-                    <h3>Faturamento por semana</h3>
-                  </div>
-                </div>
-                <div class="chart-rows admin-chart-rows admin-chart-rows-wide" id="report-revenue-chart"></div>
-              </article>
-
-              <article class="admin-card admin-table-card">
-                <div class="admin-card-heading">
-                  <div>
-                    <span class="section-kicker">resumo</span>
+                    <span class="section-kicker">resumo operacional</span>
                     <h3>Resumo de reservas</h3>
+                    <p>Leitura consolidada por data, período e status da reserva.</p>
+                  </div>
+                  <div class="report-summary-controls">
+                    <label class="toolbar-field report-summary-filter">
+                      Status da reserva
+                      <select id="report-status-filter">
+                        <option value="Todas">Todas</option>
+                        <option value="Confirmada">Confirmadas</option>
+                        <option value="Cancelada">Canceladas</option>
+                        <option value="Pendente">Pendentes</option>
+                      </select>
+                    </label>
+                    <div class="report-summary-nav" id="report-summary-nav" hidden>
+                      <button class="report-summary-nav-button is-prev" id="report-summary-prev" type="button" aria-label="Ver coluna anterior"></button>
+                      <span class="report-summary-nav-label" id="report-summary-page">Coluna 1 de 1</span>
+                      <button class="report-summary-nav-button is-next" id="report-summary-next" type="button" aria-label="Ver próxima coluna"></button>
+                    </div>
                   </div>
                 </div>
                 <div class="table-responsive admin-table-wrap">
@@ -570,8 +594,10 @@
                     <thead>
                       <tr>
                         <th>Data</th>
+                        <th>Período</th>
                         <th>Quadra</th>
                         <th>Modalidade</th>
+                        <th>Status</th>
                         <th>Quantidade de reservas</th>
                         <th>Receita estimada</th>
                       </tr>

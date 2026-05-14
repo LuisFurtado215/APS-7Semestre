@@ -642,6 +642,7 @@
     const map = {
       Confirmada: "status-confirmada",
       Cancelada: "status-cancelada",
+      Pendente: "status-pendente",
       Concluída: "status-concluida",
       Disponível: "status-disponivel",
       Reservado: "status-reservado",
@@ -3702,6 +3703,10 @@
   };
 
   const syncCustomizedSelects = (root) => {
+    root?.querySelectorAll("select:not(.is-customized)").forEach((select) => {
+      createCustomSelect(select);
+    });
+
     root?.querySelectorAll("select").forEach((select) => {
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
@@ -5414,7 +5419,6 @@
       !bannerNode ||
       !inlineSummaryNode ||
       !toggleClosedButton ||
-      !exceptionNode ||
       !fullDayButton ||
       !releaseButton ||
       !partialButton ||
@@ -5963,6 +5967,10 @@
     };
 
     const renderExceptions = (courtId) => {
+      if (!exceptionNode) {
+        return;
+      }
+
       const exceptions = getExceptionsForCourt(courtId);
 
       if (!exceptions.length) {
@@ -6037,7 +6045,9 @@
         summaryNode.innerHTML = "";
         renderContextBase(null);
         inlineSummaryNode.textContent = "";
-        exceptionNode.innerHTML = "";
+        if (exceptionNode) {
+          exceptionNode.innerHTML = "";
+        }
         bannerNode.hidden = true;
         alertNode.hidden = true;
         fullDayButton.disabled = true;
@@ -6070,15 +6080,15 @@
         title: "Bloquear esta data?",
         html: `
           <div class="modal-form-grid admin-modal-form">
-            <div class="admin-summary-item">
+            <div class="admin-summary-item admin-modal-summary-item">
               <strong>Data</strong>
               <span>${formatDate(selectedScheduleDate)}</span>
             </div>
-            <div class="admin-summary-item">
+            <div class="admin-summary-item admin-modal-summary-item">
               <strong>Quadra</strong>
               <span>${court.nome}</span>
             </div>
-            <label>
+            <label class="toolbar-field admin-modal-field admin-modal-field-full">
               Motivo do bloqueio
               <select id="admin-full-day-reason">
                 <option value="Feriado">Feriado</option>
@@ -6088,7 +6098,7 @@
                 <option value="Outro">Outro</option>
               </select>
             </label>
-            <label id="admin-full-day-other-wrap" hidden>
+            <label class="toolbar-field admin-modal-field admin-modal-field-full" id="admin-full-day-other-wrap" hidden>
               Descreva o motivo
               <input id="admin-full-day-other" type="text" placeholder="Ex.: Feriado municipal" />
             </label>
@@ -6163,9 +6173,19 @@
               Fim
               <div id="admin-partial-end" class="time-picker-shell"></div>
             </label>
-            <label style="grid-column: 1 / -1;">
-              Motivo
-              <input id="admin-partial-reason" type="text" value="Bloqueio operacional" placeholder="Ex.: Manutenção da rede" />
+            <label class="toolbar-field admin-modal-field admin-modal-field-full">
+              Motivo do bloqueio
+              <select id="admin-partial-reason">
+                <option value="Manutenção">Manutenção</option>
+                <option value="Evento privado">Evento privado</option>
+                <option value="Indisponibilidade operacional" selected>Indisponibilidade operacional</option>
+                <option value="Limpeza">Limpeza</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </label>
+            <label class="toolbar-field admin-modal-field admin-modal-field-full" id="admin-partial-other-wrap" hidden>
+              Descreva o motivo
+              <input id="admin-partial-other" type="text" placeholder="Ex.: Manutenção da rede" />
             </label>
           </div>
         `,
@@ -6181,9 +6201,14 @@
             onClick: () => {
               const start = startValue || "14:00";
               const end = endValue || "16:00";
+              const reasonSelect = document.getElementById("admin-partial-reason");
+              const otherInput = document.getElementById("admin-partial-other");
+              const selectedReason = reasonSelect?.value || "Indisponibilidade operacional";
+              const customReason = String(otherInput?.value || "").trim();
               const reason =
-                String(document.getElementById("admin-partial-reason")?.value || "").trim() ||
-                "Bloqueio operacional";
+                selectedReason === "Outro"
+                  ? customReason || "Outro bloqueio operacional"
+                  : selectedReason;
               const existingBlocks =
                 getScheduleOverrideForDay(courtId, selectedScheduleDate).meta?.partialBlocks || [];
 
@@ -6226,6 +6251,8 @@
 
       const startRoot = document.getElementById("admin-partial-start");
       const endRoot = document.getElementById("admin-partial-end");
+      const reasonSelect = document.getElementById("admin-partial-reason");
+      const otherWrap = document.getElementById("admin-partial-other-wrap");
 
       createCustomTimePicker(startRoot, {
         placeholder: "Selecione o início",
@@ -6250,6 +6277,9 @@
       });
 
       syncCustomizedSelects(document.getElementById("shared-modal-content"));
+      reasonSelect?.addEventListener("change", () => {
+        otherWrap.hidden = reasonSelect.value !== "Outro";
+      });
     };
 
     courtSelect.addEventListener("change", renderRows);
@@ -6359,33 +6389,35 @@
       }
     });
 
-    exceptionNode.addEventListener("click", (event) => {
-      const openButton = event.target.closest("[data-open-exception]");
-      const removeButton = event.target.closest("[data-remove-exception]");
-      const courtId = Number(courtSelect.value);
+    if (exceptionNode) {
+      exceptionNode.addEventListener("click", (event) => {
+        const openButton = event.target.closest("[data-open-exception]");
+        const removeButton = event.target.closest("[data-remove-exception]");
+        const courtId = Number(courtSelect.value);
 
-      if (openButton) {
-        selectedScheduleDate = openButton.dataset.openException || selectedScheduleDate;
-        scheduleCalendarMonth = parseDateString(selectedScheduleDate) || scheduleCalendarMonth;
-        renderScheduleDateCalendar();
-        renderRows();
-      }
-
-      if (removeButton) {
-        const targetDate = removeButton.dataset.removeException;
-        clearScheduleOverrideForDay(courtId, targetDate);
-
-        if (targetDate === selectedScheduleDate) {
+        if (openButton) {
+          selectedScheduleDate = openButton.dataset.openException || selectedScheduleDate;
+          scheduleCalendarMonth = parseDateString(selectedScheduleDate) || scheduleCalendarMonth;
+          renderScheduleDateCalendar();
           renderRows();
-        } else {
-          renderExceptions(courtId);
-          syncActionStates(courtId, selectedScheduleDate);
         }
 
-        notifyAdminDataChange();
-        showToast("Exceção removida.", "success");
-      }
-    });
+        if (removeButton) {
+          const targetDate = removeButton.dataset.removeException;
+          clearScheduleOverrideForDay(courtId, targetDate);
+
+          if (targetDate === selectedScheduleDate) {
+            renderRows();
+          } else {
+            renderExceptions(courtId);
+            syncActionStates(courtId, selectedScheduleDate);
+          }
+
+          notifyAdminDataChange();
+          showToast("Exceção removida.", "success");
+        }
+      });
+    }
 
     document.addEventListener("agq:admin-data-updated", () => {
       populateCourtSelect();
@@ -6397,128 +6429,883 @@
 
   const initAdminReports = () => {
     const metricsNode = document.getElementById("report-metrics");
+    const summaryNoteNode = document.getElementById("report-summary-note");
+    const periodSelect = document.getElementById("report-period-filter");
+    const modalitySelect = document.getElementById("report-modality-filter");
+    const courtSelect = document.getElementById("report-court-filter");
+    const statusSelect = document.getElementById("report-status-filter");
+    const applyButton = document.getElementById("report-apply");
+    const clearButton = document.getElementById("report-clear");
     const modalityChart = document.getElementById("report-modality-chart");
     const periodChart = document.getElementById("report-period-chart");
-    const revenueChart = document.getElementById("report-revenue-chart");
+    const periodInsightsNode = document.getElementById("report-period-insights");
+    const weekChart = document.getElementById("report-week-chart");
+    const rankingNode = document.getElementById("report-court-ranking");
     const tableNode = document.getElementById("report-table");
+    const summaryNavNode = document.getElementById("report-summary-nav");
+    const summaryPrevButton = document.getElementById("report-summary-prev");
+    const summaryNextButton = document.getElementById("report-summary-next");
+    const summaryPageNode = document.getElementById("report-summary-page");
     const exportButton = document.getElementById("export-report");
 
-    if (!metricsNode || !modalityChart || !periodChart || !revenueChart || !tableNode) {
+    if (
+      !metricsNode ||
+      !summaryNoteNode ||
+      !periodSelect ||
+      !modalitySelect ||
+      !courtSelect ||
+      !statusSelect ||
+      !modalityChart ||
+      !periodChart ||
+      !periodInsightsNode ||
+      !weekChart ||
+      !rankingNode ||
+      !tableNode
+    ) {
       return;
     }
 
-    const renderBarGroup = (target, source, currency = false) => {
-      const maxValue = Math.max(...Object.values(source), 1);
-      target.innerHTML = Object.entries(source)
-        .map(([label, value]) => {
-          const width = Math.max((value / maxValue) * 100, value ? 18 : 10);
-          return `
-            <div class="chart-row">
-              <span>${label}</span>
-              <div class="chart-bar"><div style="width:${width}%"></div></div>
-              <strong>${currency ? formatCurrency(value) : value}</strong>
-            </div>
-          `;
-        })
+    const REPORT_SAMPLE_RESERVATIONS = [
+      {
+        id: "report-01",
+        cliente: "Lucas Pereira",
+        courtId: 1,
+        quadra: "Arena Beach RP",
+        modalidade: "Beach Tennis",
+        data: "2026-05-13",
+        horario: "08:00",
+        valor: 80,
+        status: "Confirmada",
+      },
+      {
+        id: "report-02",
+        cliente: "Gabriela Martins",
+        courtId: 1,
+        quadra: "Arena Beach RP",
+        modalidade: "Beach Tennis",
+        data: "2026-05-13",
+        horario: "19:00",
+        valor: 80,
+        status: "Confirmada",
+      },
+      {
+        id: "report-03",
+        cliente: "Ricardo Alves",
+        courtId: 2,
+        quadra: "Quadra Society Norte",
+        modalidade: "Futebol",
+        data: "2026-05-14",
+        horario: "20:00",
+        valor: 120,
+        status: "Confirmada",
+      },
+      {
+        id: "report-04",
+        cliente: "Patricia Lima",
+        courtId: 2,
+        quadra: "Quadra Society Norte",
+        modalidade: "Futebol",
+        data: "2026-05-15",
+        horario: "18:00",
+        valor: 120,
+        status: "Cancelada",
+      },
+      {
+        id: "report-05",
+        cliente: "Felipe Rocha",
+        courtId: 3,
+        quadra: "Tennis Club Ribeirão",
+        modalidade: "Tênis",
+        data: "2026-05-16",
+        horario: "09:00",
+        valor: 90,
+        status: "Confirmada",
+      },
+      {
+        id: "report-06",
+        cliente: "Carla Monteiro",
+        courtId: 1,
+        quadra: "Arena Beach RP",
+        modalidade: "Beach Tennis",
+        data: "2026-05-18",
+        horario: "20:00",
+        valor: 80,
+        status: "Pendente",
+      },
+      {
+        id: "report-07",
+        cliente: "Henrique Costa",
+        courtId: 4,
+        quadra: "Vôlei Indoor RP",
+        modalidade: "Vôlei",
+        data: "2026-05-19",
+        horario: "18:00",
+        valor: 110,
+        status: "Confirmada",
+      },
+      {
+        id: "report-08",
+        cliente: "Luana Farias",
+        courtId: 5,
+        quadra: "Basquete Central",
+        modalidade: "Basquete",
+        data: "2026-05-20",
+        horario: "16:00",
+        valor: 95,
+        status: "Confirmada",
+      },
+      {
+        id: "report-09",
+        cliente: "Eduardo Nogueira",
+        courtId: 6,
+        quadra: "Arena Areia Sul",
+        modalidade: "Beach Tennis",
+        data: "2026-05-21",
+        horario: "18:00",
+        valor: 85,
+        status: "Cancelada",
+      },
+      {
+        id: "report-10",
+        cliente: "Juliana Teixeira",
+        courtId: 6,
+        quadra: "Arena Areia Sul",
+        modalidade: "Beach Tennis",
+        data: "2026-05-22",
+        horario: "20:00",
+        valor: 85,
+        status: "Confirmada",
+      },
+    ];
+
+    const defaultFilters = {
+      period: "current-month",
+      modality: "Todas",
+      court: "Todas",
+    };
+    const defaultSummaryStatus = "Todas";
+    const SUMMARY_ROWS_PER_COLUMN = 10;
+    let summaryPage = 0;
+    let latestSummaryRows = [];
+
+    const getReportStatus = (status) => {
+      if (status === "Cancelada") {
+        return "Cancelada";
+      }
+
+      if (status === "Pendente") {
+        return "Pendente";
+      }
+
+      return "Confirmada";
+    };
+
+    const getPeriodBucket = (time) => {
+      const hour = Number(String(time || "00:00").split(":")[0] || 0);
+      return hour < 12 ? "Manhã" : hour < 18 ? "Tarde" : "Noite";
+    };
+
+    const getDemandWindow = (time) => {
+      const hour = Number(String(time || "00:00").split(":")[0] || 0);
+
+      if (hour < 10) return "08h às 10h";
+      if (hour < 12) return "10h às 12h";
+      if (hour < 14) return "12h às 14h";
+      if (hour < 16) return "14h às 16h";
+      if (hour < 18) return "16h às 18h";
+      if (hour < 20) return "18h às 20h";
+      return "20h às 22h";
+    };
+
+    const addDays = (date, amount) => {
+      const next = new Date(date);
+      next.setDate(next.getDate() + amount);
+      return next;
+    };
+
+    const startOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
+    const endOfMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    const formatMonthLabel = (date) =>
+      date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    const formatShortDateLabel = (date) =>
+      date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+
+    const getPeriodMeta = (periodKey) => {
+      const today = parseDateString(getTodayDateString()) || new Date();
+      const currentStart = startOfMonth(today);
+      const currentEnd = endOfMonth(today);
+      const previousMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const previousStart = startOfMonth(previousMonthDate);
+      const previousEnd = endOfMonth(previousMonthDate);
+
+      if (periodKey === "previous-month") {
+        return {
+          label: formatMonthLabel(previousStart),
+          start: previousStart,
+          end: previousEnd,
+          previousStart: new Date(previousStart.getFullYear(), previousStart.getMonth() - 1, 1),
+          previousEnd: endOfMonth(new Date(previousStart.getFullYear(), previousStart.getMonth() - 1, 1)),
+        };
+      }
+
+      if (periodKey === "last-30-days") {
+        return {
+          label: "Últimos 30 dias",
+          start: addDays(today, -29),
+          end: today,
+          previousStart: addDays(today, -59),
+          previousEnd: addDays(today, -30),
+        };
+      }
+
+      return {
+        label: formatMonthLabel(currentStart),
+        start: currentStart,
+        end: currentEnd,
+        previousStart,
+        previousEnd,
+      };
+    };
+
+    const isDateWithinRange = (value, start, end) => {
+      const date = parseDateString(value);
+
+      if (!date || !start || !end) {
+        return false;
+      }
+
+      return date >= start && date <= end;
+    };
+
+    const getVariationLabel = (current, previous) => {
+      if (!previous && !current) {
+        return "Sem variação";
+      }
+
+      if (!previous && current) {
+        return "Nova demanda";
+      }
+
+      const delta = Math.round(((current - previous) / previous) * 100);
+
+      if (delta === 0) {
+        return "Sem variação";
+      }
+
+      return `${delta > 0 ? "+" : ""}${delta}% vs período anterior`;
+    };
+
+    const renderMetricCards = (metrics) => {
+      metricsNode.innerHTML = metrics
+        .map(
+          (metric) => `
+            <article class="admin-card metric-card report-metric-card ${metric.tone}">
+              <div class="report-metric-head">
+                <div class="report-metric-title">
+                  <span class="metric-label">${metric.label}</span>
+                  <span class="report-metric-trend">${metric.trend}</span>
+                </div>
+              </div>
+              <strong>${metric.value}</strong>
+              <p class="report-metric-helper">${metric.helper}</p>
+              <small>${metric.badge}</small>
+            </article>
+          `
+        )
         .join("");
     };
 
-    const renderReports = () => {
-      const reservations = getReservations();
-      const confirmed = reservations.filter((item) => item.status === "Confirmada");
-      const cancelled = reservations.filter((item) => item.status === "Cancelada");
-      const revenue = confirmed.reduce(
-        (sum, reservation) => sum + Number(reservation.valor || 0),
-        0
+    const renderBarGroup = (
+      target,
+      source,
+      { currency = false, percentages = null, highlightLabel = "", emptyText = "Sem dados" } = {}
+    ) => {
+      const entries = Array.isArray(source)
+        ? source
+        : Object.entries(source).map(([label, value]) => ({ label, value }));
+      const maxValue = Math.max(...entries.map((entry) => Number(entry.value || 0)), 0);
+
+      target.innerHTML = entries.length
+        ? entries
+            .map((entry) => {
+              const value = Number(entry.value || 0);
+              const width = maxValue ? Math.max((value / maxValue) * 100, value ? 12 : 0) : 0;
+              const isZero = value <= 0;
+              const meta =
+                entry.meta ||
+                (percentages && percentages[entry.label] != null
+                  ? `${percentages[entry.label]}% do total`
+                  : isZero
+                    ? emptyText
+                    : "No recorte aplicado");
+
+              return `
+                <div class="chart-row ${isZero ? "is-zero" : ""} ${highlightLabel === entry.label && !isZero ? "is-highlight" : ""}">
+                  <div class="report-bar-copy">
+                    <span>${entry.label}</span>
+                    <small>${meta}</small>
+                  </div>
+                  <div class="chart-bar"><div style="width:${width}%"></div></div>
+                  <strong>${currency ? formatCurrency(value) : value}</strong>
+                </div>
+              `;
+            })
+            .join("")
+        : `<div class="report-empty">${emptyText}</div>`;
+    };
+
+    const renderRanking = (items) => {
+      rankingNode.innerHTML = items.length
+        ? items
+            .map(
+              (item, index) => `
+                <article class="report-ranking-item">
+                  <span class="report-ranking-position">${index + 1}</span>
+                  <div class="report-ranking-copy">
+                    <strong>${item.quadra}</strong>
+                    <span>${item.reservas} reservas no período</span>
+                  </div>
+                  <div class="report-ranking-value">
+                    <strong>${formatCurrency(item.receita)}</strong>
+                    <span>Receita estimada</span>
+                  </div>
+                </article>
+              `
+            )
+            .join("")
+        : `<div class="report-empty">Nenhuma quadra com movimento no recorte atual.</div>`;
+    };
+
+    const renderSummaryTable = (rows) => {
+      latestSummaryRows = rows.slice();
+
+      const totalColumns = Math.max(
+        Math.ceil(latestSummaryRows.length / SUMMARY_ROWS_PER_COLUMN),
+        1
       );
-      const ticket = confirmed.length ? revenue / confirmed.length : 0;
-      const totalSlots = Math.max(getActiveCourts().length * TIME_SLOTS.length, 1);
-      const occupancy = Math.round((confirmed.length / totalSlots) * 100);
-      const byModality = MODALITIES.reduce((accumulator, modalidade) => {
-        accumulator[modalidade] = 0;
-        return accumulator;
-      }, {});
+      summaryPage = Math.min(Math.max(summaryPage, 0), totalColumns - 1);
 
-      Object.entries(getCountsBy(confirmed, "modalidade")).forEach(([modalidade, value]) => {
-        byModality[modalidade] = value;
-      });
-
-      const byPeriod = confirmed.reduce(
-        (accumulator, reservation) => {
-          const hour = Number(reservation.horario.split(":")[0]);
-          const bucket = hour < 12 ? "Manhã" : hour < 18 ? "Tarde" : "Noite";
-          accumulator[bucket] = (accumulator[bucket] || 0) + 1;
-          return accumulator;
-        },
-        { Manhã: 0, Tarde: 0, Noite: 0 }
+      const startIndex = summaryPage * SUMMARY_ROWS_PER_COLUMN;
+      const visibleRows = latestSummaryRows.slice(
+        startIndex,
+        startIndex + SUMMARY_ROWS_PER_COLUMN
       );
-      const byWeek = {
-        "Semana 1": 0,
-        "Semana 2": 0,
-        "Semana 3": 0,
-        "Semana 4": 0,
-        ...groupRevenueByWeek(confirmed),
-      };
-      const summaryRows = Object.values(
-        confirmed.reduce((accumulator, reservation) => {
-          const key = `${reservation.data}_${reservation.quadra}_${reservation.modalidade}`;
 
-          if (!accumulator[key]) {
-            accumulator[key] = {
-              data: reservation.data,
-              quadra: reservation.quadra,
-              modalidade: reservation.modalidade,
-              quantidade: 0,
-              receita: 0,
-            };
-          }
+      summaryNavNode.hidden = totalColumns <= 1;
+      summaryPrevButton.disabled = summaryPage <= 0;
+      summaryNextButton.disabled = summaryPage >= totalColumns - 1;
+      summaryPageNode.textContent = `Coluna ${summaryPage + 1} de ${totalColumns}`;
 
-          accumulator[key].quantidade += 1;
-          accumulator[key].receita += Number(reservation.valor || 0);
-          return accumulator;
-        }, {})
-      ).sort((left, right) => left.data.localeCompare(right.data));
-
-      metricsNode.innerHTML = `
-        <article class="admin-card metric-card"><span>Total de reservas no mês</span><strong>${confirmed.length}</strong><small>confirmadas</small></article>
-        <article class="admin-card metric-card"><span>Total de cancelamentos</span><strong>${cancelled.length}</strong><small>simulado</small></article>
-        <article class="admin-card metric-card"><span>Taxa de ocupação</span><strong>${occupancy}%</strong><small>grade base</small></article>
-        <article class="admin-card metric-card"><span>Faturamento estimado</span><strong>${formatCurrency(revenue)}</strong><small>receita</small></article>
-        <article class="admin-card metric-card"><span>Ticket médio</span><strong>${formatCurrency(ticket)}</strong><small>por reserva</small></article>
-      `;
-
-      renderBarGroup(modalityChart, byModality);
-      renderBarGroup(periodChart, byPeriod);
-      renderBarGroup(revenueChart, byWeek, true);
-
-      tableNode.innerHTML = summaryRows.length
-        ? summaryRows
+      tableNode.innerHTML = visibleRows.length
+        ? visibleRows
             .map(
               (row) => `
                 <tr>
                   <td>${formatDate(row.data)}</td>
+                  <td>${row.periodo}</td>
                   <td>${row.quadra}</td>
                   <td>${row.modalidade}</td>
+                  <td><span class="status-pill ${statusClass(row.status)}">${row.status}</span></td>
                   <td>${row.quantidade}</td>
                   <td>${formatCurrency(row.receita)}</td>
                 </tr>
               `
             )
             .join("")
-        : `<tr><td colspan="5">Nenhuma reserva confirmada no período.</td></tr>`;
+        : `<tr><td colspan="7">Nenhuma reserva encontrada para os filtros selecionados.</td></tr>`;
     };
+
+    const renderPeriodInsights = (totals, totalReservations) => {
+      const ordered = Object.entries(totals).sort((left, right) => right[1] - left[1]);
+      const leader = ordered[0] || ["Sem movimento", 0];
+      const secondary = ordered[1] || ["Sem destaque", 0];
+      const leaderShare = totalReservations
+        ? Math.round((Number(leader[1] || 0) / totalReservations) * 100)
+        : 0;
+
+      periodInsightsNode.innerHTML = `
+        <article class="report-period-insight">
+          <span>Período líder</span>
+          <strong>${leader[0]}</strong>
+          <small>${leader[1]} reservas, ${leaderShare}% do volume filtrado</small>
+        </article>
+        <article class="report-period-insight">
+          <span>Leitura rápida</span>
+          <strong>${secondary[0]}</strong>
+          <small>${secondary[1] > 0 ? `${secondary[1]} reservas no segundo maior turno` : "Sem segundo turno com volume relevante"}</small>
+        </article>
+      `;
+    };
+
+    const buildWeeklyRevenueRanges = (start, end, reservations) => {
+      const ranges = [];
+      let cursor = new Date(start);
+      let index = 1;
+
+      while (cursor <= end) {
+        const rangeStart = new Date(cursor);
+        const rangeEnd = addDays(rangeStart, 6);
+
+        if (rangeEnd > end) {
+          rangeEnd.setTime(end.getTime());
+        }
+
+        const revenue = reservations.reduce((sum, reservation) => {
+          const reservationDate = parseDateString(reservation.data);
+
+          if (!reservationDate || reservationDate < rangeStart || reservationDate > rangeEnd) {
+            return sum;
+          }
+
+          return sum + Number(reservation.valor || 0);
+        }, 0);
+
+        const dayCount =
+          Math.round((rangeEnd - rangeStart) / (1000 * 60 * 60 * 24)) + 1;
+
+        ranges.push({
+          label: `${index}. ${formatShortDateLabel(rangeStart)} a ${formatShortDateLabel(rangeEnd)}`,
+          value: revenue,
+          meta: `${dayCount} ${dayCount === 1 ? "dia" : "dias"} no recorte`,
+        });
+
+        cursor = addDays(rangeEnd, 1);
+        index += 1;
+      }
+
+      return ranges;
+    };
+
+    const downloadCsv = (rows) => {
+      const header = [
+        "Data",
+        "Período",
+        "Quadra",
+        "Modalidade",
+        "Status",
+        "Quantidade de reservas",
+        "Receita estimada",
+      ];
+      const csvRows = [
+        header.join(";"),
+        ...rows.map((row) =>
+          [
+            formatDate(row.data),
+            row.periodo,
+            row.quadra,
+            row.modalidade,
+            row.status,
+            row.quantidade,
+            formatCurrency(row.receita),
+          ]
+            .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+            .join(";")
+        ),
+      ];
+
+      const blob = new Blob([csvRows.join("\n")], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "relatorio-agendei-quadras.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    };
+
+    const getReportDataset = () =>
+      [...getReservations(), ...REPORT_SAMPLE_RESERVATIONS].map((reservation) => {
+        const reportStatus = getReportStatus(reservation.status);
+        const reportPeriod = getPeriodBucket(reservation.horario);
+
+        return {
+          ...reservation,
+          reportStatus,
+          reportPeriod,
+          demandWindow: getDemandWindow(reservation.horario),
+          reportRevenue: reportStatus === "Confirmada" ? Number(reservation.valor || 0) : 0,
+        };
+      });
+
+    const syncPeriodLabels = () => {
+      const today = parseDateString(getTodayDateString()) || new Date();
+      const previousMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const currentOption = periodSelect.querySelector('option[value="current-month"]');
+      const previousOption = periodSelect.querySelector('option[value="previous-month"]');
+
+      if (currentOption) {
+        currentOption.textContent = formatMonthLabel(startOfMonth(today));
+      }
+
+      if (previousOption) {
+        previousOption.textContent = formatMonthLabel(previousMonthDate);
+      }
+    };
+
+    const populateCourtFilter = () => {
+      const previousValue = courtSelect.value || defaultFilters.court;
+      const courts = Array.from(
+        new Set(getReportDataset().map((item) => item.quadra).filter(Boolean))
+      ).sort((left, right) => left.localeCompare(right));
+
+      courtSelect.innerHTML = `
+        <option value="Todas">Todas as quadras</option>
+        ${courts.map((court) => `<option value="${court}">${court}</option>`).join("")}
+      `;
+
+      courtSelect.value = courts.includes(previousValue) || previousValue === "Todas"
+        ? previousValue
+        : defaultFilters.court;
+
+      syncCustomizedSelects(document.querySelector('[data-admin-section="relatorios"]'));
+    };
+
+    const renderReports = (resetSummaryPage = false) => {
+      if (resetSummaryPage) {
+        summaryPage = 0;
+      }
+
+      const periodMeta = getPeriodMeta(periodSelect.value || defaultFilters.period);
+      const dataset = getReportDataset();
+      const filtered = dataset.filter((reservation) => {
+        const matchesPeriod = isDateWithinRange(
+          reservation.data,
+          periodMeta.start,
+          periodMeta.end
+        );
+        const matchesModality =
+          (modalitySelect.value || defaultFilters.modality) === "Todas" ||
+          reservation.modalidade === modalitySelect.value;
+        const matchesCourt =
+          (courtSelect.value || defaultFilters.court) === "Todas" ||
+          reservation.quadra === courtSelect.value;
+
+        return matchesPeriod && matchesModality && matchesCourt;
+      });
+      const previousPeriodReservations = dataset.filter((reservation) => {
+        const matchesPreviousPeriod = isDateWithinRange(
+          reservation.data,
+          periodMeta.previousStart,
+          periodMeta.previousEnd
+        );
+        const matchesModality =
+          (modalitySelect.value || defaultFilters.modality) === "Todas" ||
+          reservation.modalidade === modalitySelect.value;
+        const matchesCourt =
+          (courtSelect.value || defaultFilters.court) === "Todas" ||
+          reservation.quadra === courtSelect.value;
+
+        return matchesPreviousPeriod && matchesModality && matchesCourt;
+      });
+
+      const confirmed = filtered.filter((item) => item.reportStatus === "Confirmada");
+      const cancelled = filtered.filter((item) => item.reportStatus === "Cancelada");
+      const pending = filtered.filter((item) => item.reportStatus === "Pendente");
+      const previousConfirmed = previousPeriodReservations.filter(
+        (item) => item.reportStatus === "Confirmada"
+      );
+      const previousCancelled = previousPeriodReservations.filter(
+        (item) => item.reportStatus === "Cancelada"
+      );
+      const revenue = confirmed.reduce(
+        (sum, reservation) => sum + Number(reservation.valor || 0),
+        0
+      );
+      const ticket = confirmed.length ? revenue / confirmed.length : 0;
+      const previousRevenue = previousConfirmed.reduce(
+        (sum, reservation) => sum + Number(reservation.valor || 0),
+        0
+      );
+      const previousTicket = previousConfirmed.length
+        ? previousRevenue / previousConfirmed.length
+        : 0;
+      const daysInWindow = Math.max(
+        Math.round((periodMeta.end - periodMeta.start) / (1000 * 60 * 60 * 24)) + 1,
+        1
+      );
+      const totalSlots = Math.max(getActiveCourts().length * 14 * daysInWindow, 1);
+      const occupancy = Math.round((confirmed.length / totalSlots) * 100);
+      const previousOccupancy = Math.round(
+        (previousConfirmed.length / Math.max(getActiveCourts().length * 14 * daysInWindow, 1)) * 100
+      );
+      const cancellationRate = filtered.length
+        ? Math.round((cancelled.length / filtered.length) * 100)
+        : 0;
+      const previousCancellationRate = previousPeriodReservations.length
+        ? Math.round((previousCancelled.length / previousPeriodReservations.length) * 100)
+        : 0;
+      const byModality = MODALITIES.reduce((accumulator, modalidade) => {
+        accumulator[modalidade] = 0;
+        return accumulator;
+      }, {});
+
+      Object.entries(getCountsBy(filtered, "modalidade")).forEach(([modalidade, value]) => {
+        byModality[modalidade] = value;
+      });
+
+      const byPeriod = filtered.reduce(
+        (accumulator, reservation) => {
+          const bucket = reservation.reportPeriod;
+          accumulator[bucket] = (accumulator[bucket] || 0) + 1;
+          return accumulator;
+        },
+        { Manhã: 0, Tarde: 0, Noite: 0 }
+      );
+      const weeklyRevenueRanges = buildWeeklyRevenueRanges(
+        periodMeta.start,
+        periodMeta.end,
+        confirmed
+      );
+      const topWeek =
+        weeklyRevenueRanges
+          .slice()
+          .sort((left, right) => right.value - left.value)[0]?.label || "";
+      const totalReservations = Math.max(filtered.length, 1);
+      const modalityPercentages = Object.fromEntries(
+        Object.entries(byModality).map(([label, value]) => [
+          label,
+          filtered.length ? Math.round((value / totalReservations) * 100) : 0,
+        ])
+      );
+      const periodPercentages = Object.fromEntries(
+        Object.entries(byPeriod).map(([label, value]) => [
+          label,
+          filtered.length ? Math.round((value / totalReservations) * 100) : 0,
+        ])
+      );
+      const rankingBase = dataset.filter((reservation) => {
+        const matchesPeriod = isDateWithinRange(
+          reservation.data,
+          periodMeta.start,
+          periodMeta.end
+        );
+        const matchesModality =
+          (modalitySelect.value || defaultFilters.modality) === "Todas" ||
+          reservation.modalidade === modalitySelect.value;
+
+        return matchesPeriod && matchesModality && reservation.reportStatus !== "Cancelada";
+      });
+      const ranking = Object.values(
+        rankingBase.reduce((accumulator, reservation) => {
+          const key = reservation.quadra || "Quadra não informada";
+
+          if (!accumulator[key]) {
+            accumulator[key] = {
+              quadra: key,
+              reservas: 0,
+              receita: 0,
+            };
+          }
+
+          accumulator[key].reservas += 1;
+          accumulator[key].receita += reservation.reportRevenue;
+          return accumulator;
+        }, {})
+      )
+        .sort((left, right) => right.reservas - left.reservas || right.receita - left.receita);
+      const summaryFiltered = filtered.filter((reservation) => {
+        const selectedStatus = statusSelect.value || defaultSummaryStatus;
+        return selectedStatus === "Todas" || reservation.reportStatus === selectedStatus;
+      });
+      const summaryRows = Object.values(
+        summaryFiltered.reduce((accumulator, reservation) => {
+          const key = [
+            reservation.data,
+            reservation.reportPeriod,
+            reservation.quadra,
+            reservation.modalidade,
+            reservation.reportStatus,
+          ].join("_");
+
+          if (!accumulator[key]) {
+            accumulator[key] = {
+              data: reservation.data,
+              periodo: reservation.reportPeriod,
+              quadra: reservation.quadra,
+              modalidade: reservation.modalidade,
+              status: reservation.reportStatus,
+              quantidade: 0,
+              receita: 0,
+            };
+          }
+
+          accumulator[key].quantidade += 1;
+          accumulator[key].receita += reservation.reportRevenue;
+          return accumulator;
+        }, {})
+      ).sort(
+        (left, right) =>
+          right.data.localeCompare(left.data) ||
+          left.periodo.localeCompare(right.periodo) ||
+          left.quadra.localeCompare(right.quadra)
+      );
+
+      summaryNoteNode.textContent = `${periodMeta.label} • ${filtered.length} reservas no recorte • ${pending.length} pendentes`;
+
+      renderMetricCards([
+        {
+          label: "Reservas confirmadas",
+          value: String(confirmed.length),
+          helper: "No período selecionado",
+          trend: getVariationLabel(confirmed.length, previousConfirmed.length),
+          badge: "Base do período",
+          tone: "metric-card-primary",
+        },
+        {
+          label: "Receita estimada",
+          value: formatCurrency(revenue),
+          helper: "Com base nas reservas confirmadas",
+          trend: getVariationLabel(revenue, previousRevenue),
+          badge: "Estimativa",
+          tone: "metric-card-coral",
+        },
+        {
+          label: "Taxa de ocupação",
+          value: `${occupancy}%`,
+          helper: "Ocupação geral das quadras",
+          trend: getVariationLabel(occupancy, previousOccupancy),
+          badge: "Grade operacional",
+          tone: "metric-card-slate",
+        },
+        {
+          label: "Ticket médio",
+          value: formatCurrency(ticket),
+          helper: "Média por reserva confirmada",
+          trend: getVariationLabel(ticket, previousTicket),
+          badge: "Receita unitária",
+          tone: "metric-card-amber",
+        },
+        {
+          label: "Taxa de cancelamento",
+          value: `${cancellationRate}%`,
+          helper: "Cancelamentos sobre total filtrado",
+          trend: getVariationLabel(cancellationRate, previousCancellationRate),
+          badge: "Saúde da agenda",
+          tone: "metric-card-green",
+        },
+      ]);
+
+      renderBarGroup(modalityChart, byModality, {
+        percentages: modalityPercentages,
+        emptyText: "Sem reservas nesta modalidade",
+      });
+      renderBarGroup(periodChart, byPeriod, {
+        percentages: periodPercentages,
+        emptyText: "Sem movimento neste período",
+      });
+      renderPeriodInsights(byPeriod, filtered.length);
+      renderBarGroup(weekChart, weeklyRevenueRanges, {
+        currency: true,
+        highlightLabel: topWeek,
+        emptyText: "Sem receita confirmada",
+      });
+      renderRanking(ranking);
+      renderSummaryTable(summaryRows);
+    };
+
+    const applyDefaultFilters = () => {
+      periodSelect.value = defaultFilters.period;
+      modalitySelect.value = defaultFilters.modality;
+      courtSelect.value = defaultFilters.court;
+      statusSelect.value = defaultSummaryStatus;
+      syncCustomizedSelects(document.querySelector('[data-admin-section="relatorios"]'));
+    };
+
+    [periodSelect, modalitySelect, courtSelect].forEach((field) => {
+      field.addEventListener("change", () => renderReports(true));
+    });
+
+    statusSelect.addEventListener("change", () => renderReports(true));
+
+    applyButton?.addEventListener("click", () => renderReports(true));
+
+    clearButton?.addEventListener("click", () => {
+      applyDefaultFilters();
+      renderReports(true);
+    });
+
+    summaryPrevButton?.addEventListener("click", () => {
+      summaryPage = Math.max(summaryPage - 1, 0);
+      renderSummaryTable(latestSummaryRows);
+    });
+
+    summaryNextButton?.addEventListener("click", () => {
+      const totalColumns = Math.max(
+        Math.ceil(latestSummaryRows.length / SUMMARY_ROWS_PER_COLUMN),
+        1
+      );
+      summaryPage = Math.min(summaryPage + 1, totalColumns - 1);
+      renderSummaryTable(latestSummaryRows);
+    });
 
     if (exportButton) {
       exportButton.addEventListener("click", () => {
-        showToast(
-          "Relatório exportado no protótipo.",
-          "success"
-        );
+        const rows = Array.from(tableNode.querySelectorAll("tr")).length
+          ? Object.values(
+              getReportDataset()
+                .filter((reservation) => {
+                  const periodMeta = getPeriodMeta(periodSelect.value || defaultFilters.period);
+                  const matchesPeriod = isDateWithinRange(
+                    reservation.data,
+                    periodMeta.start,
+                    periodMeta.end
+                  );
+                  const matchesModality =
+                    (modalitySelect.value || defaultFilters.modality) === "Todas" ||
+                    reservation.modalidade === modalitySelect.value;
+                  const matchesCourt =
+                    (courtSelect.value || defaultFilters.court) === "Todas" ||
+                    reservation.quadra === courtSelect.value;
+                  const matchesStatus =
+                    (statusSelect.value || defaultSummaryStatus) === "Todas" ||
+                    reservation.reportStatus === statusSelect.value;
+
+                  return matchesPeriod && matchesModality && matchesCourt && matchesStatus;
+                })
+                .reduce((accumulator, reservation) => {
+                  const key = [
+                    reservation.data,
+                    reservation.reportPeriod,
+                    reservation.quadra,
+                    reservation.modalidade,
+                    reservation.reportStatus,
+                  ].join("_");
+
+                  if (!accumulator[key]) {
+                    accumulator[key] = {
+                      data: reservation.data,
+                      periodo: reservation.reportPeriod,
+                      quadra: reservation.quadra,
+                      modalidade: reservation.modalidade,
+                      status: reservation.reportStatus,
+                      quantidade: 0,
+                      receita: 0,
+                    };
+                  }
+
+                  accumulator[key].quantidade += 1;
+                  accumulator[key].receita += reservation.reportRevenue;
+                  return accumulator;
+                }, {})
+            )
+          : [];
+
+        downloadCsv(rows);
+        showToast("Relatório exportado no protótipo.", "success");
       });
     }
 
-    document.addEventListener("agq:admin-data-updated", renderReports);
-    renderReports();
+    syncPeriodLabels();
+    populateCourtFilter();
+    applyDefaultFilters();
+    document.addEventListener("agq:admin-data-updated", () => {
+      populateCourtFilter();
+      renderReports(true);
+    });
+    renderReports(true);
   };
 
   const showPendingFlashToast = () => {
