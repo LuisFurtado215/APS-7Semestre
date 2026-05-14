@@ -171,23 +171,48 @@
                       </select>
                     </label>
                     <label>
+                      CEP
+                      <input
+                        type="text"
+                        name="cep"
+                        inputmode="numeric"
+                        maxlength="9"
+                        placeholder="Ex.: 14025-080"
+                        autocomplete="postal-code"
+                      />
+                    </label>
+                    <label>
                       Bairro
-                      <select name="bairro" required>
-                        <option value="">Selecione</option>
-                        <option>Jardim Irajá</option>
-                        <option>Centro</option>
-                        <option>Ribeirânia</option>
-                        <option>Bonfim Paulista</option>
-                        <option>Nova Aliança</option>
-                      </select>
+                      <input type="text" name="bairro" placeholder="Ex.: Jardim Paulista" autocomplete="address-level2" required />
                     </label>
                     <label>
                       Endereço
-                      <input type="text" name="endereco" placeholder="Rua, número e complemento" />
+                      <input
+                        type="text"
+                        name="endereco"
+                        placeholder="Ex.: Rua das Palmeiras"
+                        autocomplete="street-address"
+                      />
+                    </label>
+                    <label>
+                      Número da residência
+                      <input
+                        type="text"
+                        name="numero"
+                        inputmode="numeric"
+                        placeholder="Ex.: 120"
+                      />
                     </label>
                     <label>
                       Preço por hora
-                      <input type="number" name="preco" min="0" step="5" placeholder="Ex.: 120" required />
+                      <input
+                        type="text"
+                        name="preco"
+                        inputmode="numeric"
+                        placeholder="Ex.: R$ 120,00"
+                        autocomplete="off"
+                        required
+                      />
                     </label>
                     <label>
                       Status
@@ -197,6 +222,7 @@
                       </select>
                     </label>
                   </div>
+                  <p class="form-message" id="admin-court-cep-message" aria-live="polite"></p>
 
                   <div class="admin-card-heading admin-court-subheading">
                     <div>
@@ -275,6 +301,14 @@
                       </div>
                     </div>
 
+                    <div class="admin-operating-block admin-day-switcher-card">
+                      <div>
+                        <strong class="detail-label">Dia para configurar</strong>
+                        <p>Escolha um dos dias selecionados para ajustar o horário de funcionamento.</p>
+                      </div>
+                      <div class="admin-day-switcher" id="admin-day-hours-selector"></div>
+                    </div>
+
                     <div class="form-grid admin-form-grid admin-hours-grid">
                       <label>
                         Horário de abertura
@@ -296,25 +330,25 @@
                         </select>
                       </label>
                     </div>
+                    <p class="toolbar-helper" id="admin-day-hours-helper"></p>
                     <p class="form-message" id="admin-hours-message" aria-live="polite"></p>
 
                     <div class="admin-pause-card">
                       <label class="admin-toggle-row">
                         <input type="checkbox" name="pausaAtiva" />
-                        <span>A quadra possui horário de pausa</span>
+                        <span class="admin-toggle-control" aria-hidden="true"><span class="admin-toggle-knob"></span></span>
+                        <span class="admin-toggle-copy">
+                          <strong>Horários de pausa</strong>
+                          <small>Defina um ou mais intervalos em que a quadra ficará indisponível.</small>
+                        </span>
                       </label>
                       <p id="admin-pause-helper">Sem pausa: todos os horários dentro do funcionamento ficam disponíveis.</p>
-                      <div class="form-grid admin-form-grid admin-pause-grid" id="admin-pause-fields" hidden>
-                        <label>
-                          Início da pausa
-                          <input type="hidden" name="pausaInicio" value="12:00" />
-                          <div id="admin-pause-start-picker" class="time-picker-shell"></div>
-                        </label>
-                        <label>
-                          Fim da pausa
-                          <input type="hidden" name="pausaFim" value="14:30" />
-                          <div id="admin-pause-end-picker" class="time-picker-shell"></div>
-                        </label>
+                      <div class="admin-pause-fields" id="admin-pause-fields" hidden>
+                        <div class="admin-pause-list" id="admin-pause-list"></div>
+                        <button class="admin-pause-add" id="admin-pause-add" type="button" aria-label="Adicionar novo horário de pausa">
+                          <span aria-hidden="true">+</span>
+                          <span>Adicionar pausa</span>
+                        </button>
                       </div>
                       <p class="form-message" id="admin-pause-message" aria-live="polite"></p>
                     </div>

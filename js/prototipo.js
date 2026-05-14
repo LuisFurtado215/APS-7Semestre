@@ -18,22 +18,9 @@
     session: "agq_session",
   };
 
-  const TIME_SLOTS = [
-    "08:00",
-    "09:00",
-    "10:00",
-    "11:00",
-    "12:00",
-    "13:00",
-    "14:00",
-    "15:00",
-    "16:00",
-    "17:00",
-    "18:00",
-    "19:00",
-    "20:00",
-    "21:00",
-  ];
+  const TIME_SLOTS = Array.from({ length: 24 }, (_, hour) =>
+    `${String(hour).padStart(2, "0")}:00`
+  );
 
   const MODALITIES = ["Futebol", "Vôlei", "Basquete", "Beach Tennis", "Tênis"];
 
@@ -219,6 +206,15 @@
 
   const WEEKDAY_KEYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"];
   const DEFAULT_OPERATING_DAYS = ["seg", "ter", "qua", "qui", "sex", "sab", "dom"];
+  const WEEKDAY_LABELS = {
+    dom: "Domingo",
+    seg: "Segunda",
+    ter: "Terça",
+    qua: "Quarta",
+    qui: "Quinta",
+    sex: "Sexta",
+    sab: "Sábado",
+  };
 
   const getWeekdayKeyFromDate = (value) => {
     const date = parseDateString(value);
@@ -346,8 +342,140 @@
     return diff / 60;
   };
 
-  const getLatestBookingStartTime = (court) =>
-    minutesToTime(Math.max(timeToMinutes(court?.horarioFechamento || "22:00") - 60, 0));
+  const normalizeWeeklyHours = (court) => {
+    const source =
+      court?.horariosPorDia && typeof court.horariosPorDia === "object"
+        ? court.horariosPorDia
+        : {};
+
+    return WEEKDAY_KEYS.reduce((accumulator, weekday) => {
+      const dayConfig = source[weekday] || {};
+      accumulator[weekday] = {
+        abertura: dayConfig.abertura || court?.horarioAbertura || "08:00",
+        fechamento: dayConfig.fechamento || court?.horarioFechamento || "22:00",
+      };
+      return accumulator;
+    }, {});
+  };
+
+  const getCourtOperatingWindow = (court, weekdayKey = "") => {
+    const fallback = {
+      abertura: court?.horarioAbertura || "08:00",
+      fechamento: court?.horarioFechamento || "22:00",
+    };
+
+    if (!court || !weekdayKey) {
+      return fallback;
+    }
+
+    const weeklyHours = normalizeWeeklyHours(court);
+    return weeklyHours[weekdayKey] || fallback;
+  };
+
+  const getCourtOperatingWindowForDate = (court, date) =>
+    getCourtOperatingWindow(court, getWeekdayKeyFromDate(date));
+
+  const formatOperatingRangeWithPauses = (opening, closing, pauses = []) => {
+    const startMinutes = timeToMinutes(opening || "08:00");
+    const endMinutes = timeToMinutes(closing || "22:00");
+    const normalizedPauses = normalizePauseRanges(pauses)
+      .map((pause) => ({
+        start: timeToMinutes(pause.inicio),
+        end: timeToMinutes(pause.fim),
+      }))
+      .filter((pause) => pause.start < pause.end)
+      .sort((a, b) => a.start - b.start);
+
+    if (!normalizedPauses.length) {
+      return `${opening || "08:00"} às ${closing || "22:00"}`;
+    }
+
+    const segments = [];
+    let cursor = startMinutes;
+
+    normalizedPauses.forEach((pause) => {
+      if (pause.start > cursor) {
+        segments.push(`${minutesToTime(cursor)} às ${minutesToTime(pause.start)}`);
+      }
+
+      cursor = Math.max(cursor, pause.end);
+    });
+
+    if (cursor < endMinutes) {
+      segments.push(`${minutesToTime(cursor)} às ${minutesToTime(endMinutes)}`);
+    }
+
+    return segments.length
+      ? segments.join(" e ")
+      : `${opening || "08:00"} às ${closing || "22:00"}`;
+  };
+
+  const getCourtOperatingSummary = (court) => {
+    const selectedDays =
+      Array.isArray(court?.diasFuncionamento) && court.diasFuncionamento.length
+        ? court.diasFuncionamento
+        : DEFAULT_OPERATING_DAYS;
+    const weeklyHours = normalizeWeeklyHours(court);
+    const uniqueRanges = Array.from(
+      new Set(
+        selectedDays.map((weekday) => {
+          const hours = weeklyHours[weekday] || {};
+          return formatOperatingRangeWithPauses(
+            hours.abertura || "08:00",
+            hours.fechamento || "22:00",
+            getCourtPauseRanges(court, weekday)
+          );
+        })
+      )
+    );
+
+    return uniqueRanges.length === 1
+      ? uniqueRanges[0]
+      : "Horários por dia";
+  };
+
+  const getCourtOperatingRows = (court) => {
+    const selectedDays =
+      Array.isArray(court?.diasFuncionamento) && court.diasFuncionamento.length
+        ? court.diasFuncionamento
+        : DEFAULT_OPERATING_DAYS;
+    const weeklyHours = normalizeWeeklyHours(court);
+
+    return selectedDays.map((weekday) => {
+      const hours = weeklyHours[weekday] || {};
+      return {
+        weekday,
+        label: WEEKDAY_LABELS[weekday] || weekday,
+        range: formatOperatingRangeWithPauses(
+          hours.abertura || "08:00",
+          hours.fechamento || "22:00",
+          getCourtPauseRanges(court, weekday)
+        ),
+      };
+    });
+  };
+
+  const getCourtOperatingLabelForDate = (court, date) => {
+    const weekday = getWeekdayKeyFromDate(date);
+    const hours = getCourtOperatingWindowForDate(court, date);
+
+    return {
+      dayLabel: WEEKDAY_LABELS[weekday] || "Dia selecionado",
+      range: formatOperatingRangeWithPauses(
+        hours.abertura || "08:00",
+        hours.fechamento || "22:00",
+        getCourtPauseRanges(court, weekday)
+      ),
+    };
+  };
+
+  const getLatestBookingStartTime = (court, bookingDate = "") => {
+    const window = bookingDate
+      ? getCourtOperatingWindowForDate(court, bookingDate)
+      : getCourtOperatingWindow(court);
+
+    return minutesToTime(Math.max(timeToMinutes(window.fechamento) - 60, 0));
+  };
 
   const getSaoPauloNowParts = (date = new Date()) => {
     const parts = new Intl.DateTimeFormat("en-CA", {
@@ -505,6 +633,10 @@
             imagem: court.imagem || baseCourt.imagem,
             horarioAbertura: court.horarioAbertura || baseCourt.horarioAbertura,
             horarioFechamento: court.horarioFechamento || baseCourt.horarioFechamento,
+            horariosPorDia: normalizeWeeklyHours({
+              ...baseCourt,
+              ...court,
+            }),
           };
         })
       );
@@ -546,10 +678,12 @@
       status: court.status || "Ativa",
       horarioAbertura: court.horarioAbertura || "08:00",
       horarioFechamento: court.horarioFechamento || "22:00",
+      horariosPorDia: normalizeWeeklyHours(court),
       diasFuncionamento: Array.isArray(court.diasFuncionamento)
         ? court.diasFuncionamento
         : DEFAULT_OPERATING_DAYS,
       pausaAtiva: Boolean(court.pausaAtiva),
+      pausasPorDia: normalizePausesByDay(court),
       pausaInicio: court.pausaInicio || "12:00",
       pausaFim: court.pausaFim || "14:30",
       duracaoPadrao: String(court.duracaoPadrao || "60"),
@@ -915,8 +1049,9 @@
 
     const startMinutes = timeToMinutes(startTime);
     const endMinutes = startMinutes + Number(duration || 1) * 60;
-    const openMinutes = timeToMinutes(court?.horarioAbertura || "08:00");
-    const closeMinutes = timeToMinutes(court?.horarioFechamento || "22:00");
+    const operatingWindow = getCourtOperatingWindowForDate(court, bookingDate);
+    const openMinutes = timeToMinutes(operatingWindow.abertura);
+    const closeMinutes = timeToMinutes(operatingWindow.fechamento);
 
     if (startMinutes < openMinutes || endMinutes > closeMinutes) {
       return false;
@@ -960,8 +1095,9 @@
 
   const getSelectableTimeOptions = (court, schedule, duration = 1, bookingDate = "") => {
     const options = [];
-    const start = timeToMinutes(court?.horarioAbertura || "08:00");
-    const end = timeToMinutes(getLatestBookingStartTime(court));
+    const operatingWindow = getCourtOperatingWindowForDate(court, bookingDate);
+    const start = timeToMinutes(operatingWindow.abertura);
+    const end = timeToMinutes(getLatestBookingStartTime(court, bookingDate));
 
     for (let minutes = start; minutes <= end; minutes += 5) {
       const time = minutesToTime(minutes);
@@ -979,7 +1115,8 @@
       return [];
     }
 
-    const closeMinutes = timeToMinutes(court.horarioFechamento || "22:00");
+    const operatingWindow = getCourtOperatingWindowForDate(court, bookingDate);
+    const closeMinutes = timeToMinutes(operatingWindow.fechamento);
     const startMinutes = timeToMinutes(startTime);
     const maxByClose = Math.floor((closeMinutes - startMinutes) / 60);
     const limit = Math.max(0, Math.min(maxDuration, maxByClose));
@@ -1676,6 +1813,71 @@
   const getScheduleOverrides = () =>
     readJson(STORAGE_KEYS.scheduleOverrides, {});
 
+  const normalizePauseRanges = (pauses = []) =>
+    (Array.isArray(pauses) ? pauses : [])
+      .map((pause) => ({
+        inicio: pause?.inicio || "12:00",
+        fim: pause?.fim || "14:30",
+      }))
+      .filter((pause) => pause.inicio && pause.fim);
+
+  const normalizePausesByDay = (court) => {
+    const source =
+      court?.pausasPorDia && typeof court.pausasPorDia === "object"
+        ? court.pausasPorDia
+        : {};
+
+    return WEEKDAY_KEYS.reduce((accumulator, weekday) => {
+      accumulator[weekday] = normalizePauseRanges(source[weekday]);
+      return accumulator;
+    }, {});
+  };
+
+  const getCourtPauseRanges = (court, weekdayKey = "") => {
+    if (!court?.pausaAtiva) {
+      return [];
+    }
+
+    const hasPausesByDay =
+      court?.pausasPorDia && typeof court.pausasPorDia === "object";
+
+    if (weekdayKey) {
+      const pausesByDay = normalizePausesByDay(court);
+      const dayPauses = pausesByDay[weekdayKey];
+
+      if (hasPausesByDay) {
+        return Array.isArray(dayPauses) ? dayPauses : [];
+      }
+
+      if (Array.isArray(dayPauses) && dayPauses.length) {
+        return dayPauses;
+      }
+    } else {
+      const firstDayWithPauses = Object.values(normalizePausesByDay(court)).find(
+        (items) => Array.isArray(items) && items.length
+      );
+
+      if (firstDayWithPauses) {
+        return firstDayWithPauses;
+      }
+    }
+
+    if (Array.isArray(court.pausas) && court.pausas.length) {
+      return normalizePauseRanges(court.pausas);
+    }
+
+    if (court.pausaInicio && court.pausaFim) {
+      return [
+        {
+          inicio: court.pausaInicio,
+          fim: court.pausaFim,
+        },
+      ];
+    }
+
+    return [];
+  };
+
   const getSchedule = (courtId, date) => {
     const overrides = getScheduleOverrides();
     const key = `${courtId}_${date}`;
@@ -1683,16 +1885,19 @@
     const court = getCourtById(courtId);
     const weekdayKey = getWeekdayKeyFromDate(date);
     const isOperatingDay = !court || !weekdayKey || court.diasFuncionamento.includes(weekdayKey);
-    const openingMinutes = timeToMinutes(court?.horarioAbertura || "08:00");
-    const closingMinutes = timeToMinutes(court?.horarioFechamento || "22:00");
-    const pauseStartMinutes = timeToMinutes(court?.pausaInicio || "12:00");
-    const pauseEndMinutes = timeToMinutes(court?.pausaFim || "14:30");
+    const operatingWindow = getCourtOperatingWindow(court, weekdayKey);
+    const openingMinutes = timeToMinutes(operatingWindow.abertura);
+    const closingMinutes = timeToMinutes(operatingWindow.fechamento);
+    const pauseRanges = getCourtPauseRanges(court, weekdayKey).map((pause) => ({
+      start: timeToMinutes(pause.inicio),
+      end: timeToMinutes(pause.fim),
+    }));
     const schedule = TIME_SLOTS.map((time) => {
       const template = DEFAULT_SCHEDULE_TEMPLATE[time] || { status: "Disponível" };
       const slotMinutes = timeToMinutes(time);
       const isOutsideHours = slotMinutes < openingMinutes || slotMinutes >= closingMinutes;
       const isPaused =
-        court?.pausaAtiva && slotMinutes >= pauseStartMinutes && slotMinutes < pauseEndMinutes;
+        pauseRanges.some((pause) => slotMinutes >= pause.start && slotMinutes < pause.end);
       const generatedStatus =
         !isOperatingDay || isOutsideHours || isPaused ? "Bloqueado" : template.status;
       return {
@@ -2369,8 +2574,10 @@
     }
 
     const detailFacilities = getDetailFacilities(court);
+    const operatingRows = getCourtOperatingRows(court);
     const today = getTodayDateString();
     let selectedDetailDate = today;
+    const selectedOperating = getCourtOperatingLabelForDate(court, selectedDetailDate);
     state.selectedBookingTime = null;
     state.selectedBookingDuration = 1;
 
@@ -2410,7 +2617,7 @@
             </article>
             <article class="detail-info-card">
               <span class="detail-label">Funcionamento</span>
-              <p>${court.horarioAbertura} às ${court.horarioFechamento}</p>
+              <p id="detail-operating-highlight">${selectedOperating.dayLabel}: ${selectedOperating.range}</p>
             </article>
             <article class="detail-info-card detail-price-card">
               <span class="detail-label">Preço</span>
@@ -2418,8 +2625,21 @@
             </article>
           </div>
           <section class="detail-section">
-            <h3>Descrição</h3>
-            <p class="detail-description">${court.descricao}</p>
+            <details class="detail-operating-accordion">
+              <summary>Funcionamento Por Dia</summary>
+              <div class="detail-operating-list">
+                ${operatingRows
+                  .map(
+                    (item) => `
+                      <article class="detail-operating-item">
+                        <strong>${item.label}</strong>
+                        <span>${item.range}</span>
+                      </article>
+                    `
+                  )
+                  .join("")}
+              </div>
+            </details>
           </section>
           <section class="detail-section facility-section">
             <h3>Estrutura disponível</h3>
@@ -2474,6 +2694,7 @@
     const bookingButton = document.getElementById("detail-booking-action");
     const bookingMessage = document.getElementById("detail-booking-message");
     const dateMessage = document.getElementById("detail-date-message");
+    const operatingHighlight = document.getElementById("detail-operating-highlight");
     const endPickerRoot = document.getElementById("detail-booking-end");
     const detailDatePicker = createCustomDatePicker(dateInput, {
       onChange: (nextValue) => {
@@ -2552,10 +2773,24 @@
       bookingButton.classList.toggle("is-disabled", !isReady);
     };
 
+    const syncOperatingHighlight = () => {
+      if (!operatingHighlight) {
+        return;
+      }
+
+      const selectedOperatingWindow = getCourtOperatingLabelForDate(
+        court,
+        selectedDetailDate || today
+      );
+      operatingHighlight.textContent = `${selectedOperatingWindow.dayLabel}: ${selectedOperatingWindow.range}`;
+    };
+
     const renderDetailSchedule = () => {
       if (!timePickerRoot || !timeFeedback || !dateInput) {
         return;
       }
+
+      syncOperatingHighlight();
 
       const selectedDate = selectedDetailDate;
       const schedule = selectedDate ? getDetailScheduleForDate(court.id, selectedDate) : [];
@@ -2791,7 +3026,8 @@
       }
 
       const startMinutes = timeToMinutes(startTime);
-      const closeMinutes = timeToMinutes(court.horarioFechamento || "22:00");
+      const operatingWindow = getCourtOperatingWindowForDate(court, selectedBookingDate);
+      const closeMinutes = timeToMinutes(operatingWindow.fechamento);
       const candidateTimes = [];
 
       for (let minutes = startMinutes + 60; minutes <= closeMinutes; minutes += 60) {
@@ -3924,10 +4160,12 @@
     const pauseMessage = document.getElementById("admin-pause-message");
     const pauseHelper = document.getElementById("admin-pause-helper");
     const pauseFields = document.getElementById("admin-pause-fields");
+    const pauseList = document.getElementById("admin-pause-list");
+    const pauseAddButton = document.getElementById("admin-pause-add");
+    const dayHoursSelector = document.getElementById("admin-day-hours-selector");
+    const dayHoursHelper = document.getElementById("admin-day-hours-helper");
     const openTimePickerRoot = document.getElementById("admin-open-time-picker");
     const closeTimePickerRoot = document.getElementById("admin-close-time-picker");
-    const pauseStartPickerRoot = document.getElementById("admin-pause-start-picker");
-    const pauseEndPickerRoot = document.getElementById("admin-pause-end-picker");
     const stepPanels = Array.from(form.querySelectorAll("[data-court-step]"));
     const stepNavButtons = Array.from(form.querySelectorAll("[data-court-step-nav]"));
     const prevStepButtons = Array.from(form.querySelectorAll("[data-court-prev]"));
@@ -3955,8 +4193,13 @@
     const courtSteps = ["dados", "funcionamento", "fotos"];
     let activeCourtStep = "dados";
     let photoDraft = [];
-    const operatingTimeOptions = TIME_SLOTS.map((slot) => ({
-      value: slot,
+    let pauseDraft = [{ inicio: "12:00", fim: "14:30" }];
+    let pausePickerControls = [];
+    let pauseDraftByDay = {};
+    let dayHoursDraft = {};
+    let activeOperatingDay = "dom";
+    const operatingTimeOptions = Array.from({ length: 24 * 12 }, (_, index) => ({
+      value: minutesToTime(index * 5),
       disabled: false,
     }));
     const pauseTimeOptions = Array.from({ length: 24 * 12 }, (_, index) => ({
@@ -3966,7 +4209,16 @@
     const openTimePicker = createCustomTimePicker(openTimePickerRoot, {
       placeholder: "Abertura",
       onChange: (nextValue) => {
-        form.abertura.value = nextValue;
+        if (activeOperatingDay) {
+          dayHoursDraft[activeOperatingDay] = {
+            ...(dayHoursDraft[activeOperatingDay] || {}),
+            abertura: nextValue,
+            fechamento:
+              dayHoursDraft[activeOperatingDay]?.fechamento ||
+              form.fechamento.value ||
+              "22:00",
+          };
+        }
         syncOperatingTimePickers();
         validateCourtHours();
       },
@@ -3974,27 +4226,23 @@
     const closeTimePicker = createCustomTimePicker(closeTimePickerRoot, {
       placeholder: "Fechamento",
       onChange: (nextValue) => {
-        form.fechamento.value = nextValue;
+        if (activeOperatingDay) {
+          dayHoursDraft[activeOperatingDay] = {
+            ...(dayHoursDraft[activeOperatingDay] || {}),
+            abertura:
+              dayHoursDraft[activeOperatingDay]?.abertura ||
+              form.abertura.value ||
+              "08:00",
+            fechamento: nextValue,
+          };
+        }
         syncOperatingTimePickers();
         validateCourtHours();
       },
     });
-    const pauseStartPicker = createCustomTimePicker(pauseStartPickerRoot, {
-      placeholder: "Início",
-      onChange: (nextValue) => {
-        form.pausaInicio.value = nextValue;
-        validateCourtHours();
-        syncPausePickers();
-      },
-    });
-    const pauseEndPicker = createCustomTimePicker(pauseEndPickerRoot, {
-      placeholder: "Fim",
-      onChange: (nextValue) => {
-        form.pausaFim.value = nextValue;
-        validateCourtHours();
-        syncPausePickers();
-      },
-    });
+    const cepMessage = document.getElementById("admin-court-cep-message");
+    let cepLookupController = null;
+    let cepMessageTimeout = null;
 
     const collectStructure = () =>
       Array.from(form.querySelectorAll('input[name="estrutura"]:checked')).map(
@@ -4011,6 +4259,42 @@
       form.querySelectorAll('input[name="diasFuncionamento"]').forEach((checkbox) => {
         checkbox.checked = selected.has(checkbox.value);
       });
+      const selectedDays = collectOperatingDays();
+      if (!selectedDays.includes(activeOperatingDay)) {
+        activeOperatingDay = selectedDays[0] || "dom";
+      }
+      renderDaySelector();
+      syncOperatingTimePickers();
+    };
+
+    const buildDefaultDayHoursDraft = (opening = "08:00", closing = "22:00") =>
+      WEEKDAY_KEYS.reduce((accumulator, weekday) => {
+        accumulator[weekday] = {
+          abertura: opening,
+          fechamento: closing,
+        };
+        return accumulator;
+      }, {});
+
+    const buildDefaultPauseDraftByDay = () =>
+      WEEKDAY_KEYS.reduce((accumulator, weekday) => {
+        accumulator[weekday] = [];
+        return accumulator;
+      }, {});
+
+    const isPauseEnabledForDay = (weekday = activeOperatingDay) =>
+      Array.isArray(pauseDraftByDay[weekday]) && pauseDraftByDay[weekday].length > 0;
+
+    const getPauseRanges = (weekday = activeOperatingDay) => {
+      const source =
+        typeof weekday === "string"
+          ? pauseDraftByDay[weekday] || []
+          : pauseDraft;
+
+      return source.map((pause) => ({
+        inicio: pause.inicio || "12:00",
+        fim: pause.fim || "14:30",
+      }));
     };
 
     const setMessage = (node, message = "", type = "error") => {
@@ -4021,6 +4305,264 @@
       node.textContent = message;
       node.classList.toggle("is-error", Boolean(message && type === "error"));
       node.classList.toggle("is-success", Boolean(message && type === "success"));
+    };
+
+    const setCepMessage = (message = "", type = "error", { autoHide = false } = {}) => {
+      if (cepMessageTimeout) {
+        window.clearTimeout(cepMessageTimeout);
+        cepMessageTimeout = null;
+      }
+
+      setMessage(cepMessage, message, type);
+
+      if (autoHide && message) {
+        cepMessageTimeout = window.setTimeout(() => {
+          setMessage(cepMessage);
+          cepMessageTimeout = null;
+        }, 3000);
+      }
+    };
+
+    const normalizeCep = (value) => String(value || "").replace(/\D/g, "").slice(0, 8);
+
+    const formatCep = (value) => {
+      const digits = normalizeCep(value);
+
+      if (digits.length <= 5) {
+        return digits;
+      }
+
+      return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+    };
+
+    const parseCurrencyValue = (value) => {
+      const digits = String(value || "").replace(/\D/g, "");
+
+      if (!digits) {
+        return 0;
+      }
+
+      return Number(digits) / 100;
+    };
+
+    const formatCurrencyInput = (value) => {
+      const digits = String(value || "").replace(/\D/g, "");
+
+      if (!digits) {
+        return "";
+      }
+
+      return formatCurrency(Number(digits) / 100);
+    };
+
+    const formatPauseSummary = (pauses = []) =>
+      pauses.map((pause) => `${pause.inicio} às ${pause.fim}`).join(" • ");
+
+    const splitAddressParts = (value) => {
+      const raw = String(value || "").trim();
+
+      if (!raw) {
+        return { endereco: "", numero: "" };
+      }
+
+      const match = raw.match(/^(.*?)(?:,\s*([0-9A-Za-z-]+))$/);
+
+      if (!match) {
+        return { endereco: raw, numero: "" };
+      }
+
+      return {
+        endereco: match[1].trim(),
+        numero: match[2].trim(),
+      };
+    };
+
+    const buildAddress = (street, number) => {
+      const endereco = String(street || "").trim();
+      const numero = String(number || "").trim();
+
+      return [endereco, numero].filter(Boolean).join(", ");
+    };
+
+    const applyCepAddress = (address) => {
+      const streetParts = [address.logradouro, address.complemento].filter(Boolean).join(", ");
+
+      if (streetParts) {
+        form.endereco.value = streetParts;
+      }
+
+      if (address.bairro) {
+        form.bairro.value = address.bairro;
+      }
+    };
+
+    const renderPauseRows = () => {
+      if (!pauseList) {
+        return;
+      }
+
+      pauseList.innerHTML = pauseDraft
+        .map(
+          (pause, index) => `
+            <article class="admin-pause-row" data-pause-index="${index}">
+              <div class="admin-pause-row-head">
+                <strong>Pausa ${index + 1}</strong>
+                ${
+                  pauseDraft.length > 1
+                    ? `<button class="admin-pause-remove" type="button" data-pause-remove="${index}" aria-label="Remover pausa ${index + 1}">Remover</button>`
+                    : ""
+                }
+              </div>
+              <div class="form-grid admin-form-grid admin-pause-grid">
+                <label>
+                  Início da pausa
+                  <input type="hidden" name="pausaInicio${index}" value="${pause.inicio || "12:00"}" />
+                  <div class="time-picker-shell" data-pause-start-shell="${index}"></div>
+                </label>
+                <label>
+                  Fim da pausa
+                  <input type="hidden" name="pausaFim${index}" value="${pause.fim || "14:30"}" />
+                  <div class="time-picker-shell" data-pause-end-shell="${index}"></div>
+                </label>
+              </div>
+            </article>
+          `
+        )
+        .join("");
+
+      pausePickerControls = pauseDraft.map((pause, index) => {
+        const startRoot = pauseList.querySelector(`[data-pause-start-shell="${index}"]`);
+        const endRoot = pauseList.querySelector(`[data-pause-end-shell="${index}"]`);
+        const startPicker = createCustomTimePicker(startRoot, {
+          placeholder: "Início",
+          onChange: (nextValue) => {
+            pauseDraft[index].inicio = nextValue;
+            pauseDraftByDay[activeOperatingDay] = pauseDraft.map((pauseItem) => ({ ...pauseItem }));
+            validateCourtHours();
+            syncPausePickers();
+          },
+        });
+        const endPicker = createCustomTimePicker(endRoot, {
+          placeholder: "Fim",
+          onChange: (nextValue) => {
+            pauseDraft[index].fim = nextValue;
+            pauseDraftByDay[activeOperatingDay] = pauseDraft.map((pauseItem) => ({ ...pauseItem }));
+            validateCourtHours();
+            syncPausePickers();
+          },
+        });
+
+        return { startPicker, endPicker };
+      });
+
+      syncPausePickers();
+    };
+
+    const setPauseDraft = (values, weekday = activeOperatingDay) => {
+      const normalized = Array.isArray(values)
+        ? values.map((pause) => ({
+            inicio: pause?.inicio || "12:00",
+            fim: pause?.fim || "14:30",
+          }))
+        : [];
+
+      pauseDraftByDay[weekday] = normalized;
+      pauseDraft = normalized.map((pause) => ({ ...pause }));
+      renderPauseRows();
+    };
+
+    const renderDaySelector = () => {
+      if (!dayHoursSelector) {
+        return;
+      }
+
+      const selectedDays = collectOperatingDays();
+
+      if (!selectedDays.length) {
+        dayHoursSelector.innerHTML = "";
+        if (dayHoursHelper) {
+          dayHoursHelper.textContent =
+            "Selecione pelo menos um dia de funcionamento para configurar os horários.";
+        }
+        return;
+      }
+
+      if (!selectedDays.includes(activeOperatingDay)) {
+        activeOperatingDay = selectedDays[0];
+      }
+
+      dayHoursSelector.innerHTML = selectedDays
+        .map((weekday) => {
+          return `
+            <button
+              class="admin-day-switcher-button ${weekday === activeOperatingDay ? "is-active" : ""}"
+              type="button"
+              data-day-switch="${weekday}"
+            >
+              ${WEEKDAY_LABELS[weekday] || weekday}
+            </button>
+          `;
+        })
+        .join("");
+
+      if (dayHoursHelper) {
+        dayHoursHelper.textContent = activeOperatingDay
+          ? `Ajustando o funcionamento de ${WEEKDAY_LABELS[activeOperatingDay] || activeOperatingDay}.`
+          : "";
+      }
+    };
+
+    const lookupCep = async () => {
+      const cep = normalizeCep(form.cep?.value);
+
+      if (!form.cep) {
+        return;
+      }
+
+      form.cep.value = formatCep(cep);
+
+      if (!cep) {
+        setCepMessage();
+        return;
+      }
+
+      if (cep.length < 8) {
+        setCepMessage("Digite os 8 números do CEP para buscar o endereço.");
+        return;
+      }
+
+      if (cepLookupController) {
+        cepLookupController.abort();
+      }
+
+      cepLookupController = new AbortController();
+      setCepMessage("Buscando endereço pelo CEP...", "success");
+
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`, {
+          signal: cepLookupController.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error("cep_lookup_failed");
+        }
+
+        const address = await response.json();
+
+        if (address.erro) {
+          setCepMessage("CEP não encontrado.");
+          return;
+        }
+
+        applyCepAddress(address);
+        setCepMessage("Endereço preenchido automaticamente.", "success", { autoHide: true });
+      } catch (error) {
+        if (error.name === "AbortError") {
+          return;
+        }
+
+        setCepMessage("Não foi possível consultar o CEP agora.");
+      }
     };
 
     const formatOperatingDays = (days = []) => {
@@ -4081,15 +4623,20 @@
       ).then((items) => items.filter(Boolean));
 
     const syncPauseFields = () => {
-      const hasPause = Boolean(form.pausaAtiva?.checked);
+      const hasPause = isPauseEnabledForDay(activeOperatingDay);
+
+      if (form.pausaAtiva) {
+        form.pausaAtiva.checked = hasPause;
+      }
 
       if (pauseFields) {
         pauseFields.hidden = !hasPause;
+        pauseFields.classList.toggle("is-visible", hasPause);
       }
 
       if (pauseHelper) {
         pauseHelper.textContent = hasPause
-          ? "Horários dentro da pausa ficam indisponíveis na simulação de agenda."
+          ? `Adicione um ou mais intervalos para ${WEEKDAY_LABELS[activeOperatingDay] || activeOperatingDay}.`
           : "Sem pausa: todos os horários dentro do funcionamento ficam disponíveis.";
       }
 
@@ -4097,11 +4644,20 @@
     };
 
     function syncOperatingTimePickers() {
-      const openingMinutes = timeToMinutes(form.abertura.value || "08:00");
+      const activeHours = dayHoursDraft[activeOperatingDay] || {
+        abertura: form.abertura.value || "08:00",
+        fechamento: form.fechamento.value || "22:00",
+      };
+      const openingValue = activeHours.abertura || "08:00";
+      const closingValue = activeHours.fechamento || "22:00";
+      const openingMinutes = timeToMinutes(openingValue);
+
+      form.abertura.value = openingValue;
+      form.fechamento.value = closingValue;
 
       openTimePicker.setState({
         options: operatingTimeOptions,
-        value: form.abertura.value || "",
+        value: openingValue,
         disabled: false,
       });
       closeTimePicker.setState({
@@ -4109,23 +4665,35 @@
           ...option,
           disabled: timeToMinutes(option.value) <= openingMinutes,
         })),
-        value: form.fechamento.value || "",
+        value: closingValue,
         disabled: false,
       });
     }
 
     function syncPausePickers() {
-      const hasPause = Boolean(form.pausaAtiva?.checked);
+      const hasPause = isPauseEnabledForDay(activeOperatingDay);
+      const openingMinutes = timeToMinutes(form.abertura.value || "08:00");
 
-      pauseStartPicker.setState({
-        options: pauseTimeOptions,
-        value: form.pausaInicio.value || "",
-        disabled: !hasPause,
-      });
-      pauseEndPicker.setState({
-        options: pauseTimeOptions,
-        value: form.pausaFim.value || "",
-        disabled: !hasPause,
+      pausePickerControls.forEach((controls, index) => {
+        const pause = pauseDraft[index] || {};
+        const startMinutes = timeToMinutes(pause.inicio || "12:00");
+
+        controls.startPicker.setState({
+          options: pauseTimeOptions.map((option) => ({
+            ...option,
+            disabled: timeToMinutes(option.value) < openingMinutes,
+          })),
+          value: pause.inicio || "",
+          disabled: !hasPause,
+        });
+        controls.endPicker.setState({
+          options: pauseTimeOptions.map((option) => ({
+            ...option,
+            disabled: timeToMinutes(option.value) <= startMinutes,
+          })),
+          value: pause.fim || "",
+          disabled: !hasPause,
+        });
       });
     }
 
@@ -4146,20 +4714,61 @@
         return false;
       }
 
-      if (form.pausaAtiva?.checked) {
-        const opening = timeToMinutes(form.abertura.value || "08:00");
-        const closing = timeToMinutes(form.fechamento.value || "22:00");
-        const pauseStart = timeToMinutes(form.pausaInicio.value || "12:00");
-        const pauseEnd = timeToMinutes(form.pausaFim.value || "14:30");
+      if (isPauseEnabledForDay(activeOperatingDay)) {
+        const pauses = getPauseRanges(activeOperatingDay)
+          .map((pause) => ({
+            ...pause,
+            start: timeToMinutes(pause.inicio || "12:00"),
+            end: timeToMinutes(pause.fim || "14:30"),
+          }))
+          .sort((a, b) => a.start - b.start);
 
-        if (pauseEnd <= pauseStart) {
-          setMessage(pauseMessage, "O fim da pausa precisa ser depois do início.");
+        for (const pause of pauses) {
+          if (pause.end <= pause.start) {
+            setMessage(pauseMessage, "O fim de cada pausa precisa ser depois do início.");
+            return false;
+          }
+        }
+
+        for (let index = 1; index < pauses.length; index += 1) {
+          if (pauses[index].start < pauses[index - 1].end) {
+            setMessage(pauseMessage, "As pausas não podem se sobrepor.");
+            return false;
+          }
+        }
+      }
+
+      for (const weekday of collectOperatingDays()) {
+        const hours = dayHoursDraft[weekday] || {};
+        const opening = timeToMinutes(hours.abertura || "08:00");
+        const closing = timeToMinutes(hours.fechamento || "22:00");
+
+        if (
+          hours.abertura &&
+          hours.fechamento &&
+          timeToMinutes(hours.fechamento) <= timeToMinutes(hours.abertura)
+        ) {
+          setMessage(
+            hoursMessage,
+            `O horário de ${WEEKDAY_LABELS[weekday] || weekday} precisa fechar depois de abrir.`
+          );
           return false;
         }
 
-        if (pauseStart < opening || pauseEnd > closing) {
-          setMessage(pauseMessage, "A pausa precisa estar dentro do horário de funcionamento.");
-          return false;
+        if (isPauseEnabledForDay(weekday)) {
+          const hasPauseOutsideWindow = getPauseRanges(weekday).some((pause) => {
+            const start = timeToMinutes(pause.inicio || "12:00");
+            const end = timeToMinutes(pause.fim || "14:30");
+            return start < opening || end > closing;
+          });
+
+          if (hasPauseOutsideWindow) {
+            setMessage(
+              pauseMessage,
+              `As pausas precisam caber dentro do funcionamento de ${WEEKDAY_LABELS[weekday] || weekday}.`
+            );
+            return false;
+          }
         }
       }
 
@@ -4236,20 +4845,24 @@
     };
 
     const fillForm = (court) => {
+      const addressParts = splitAddressParts(court.endereco);
+
       form.nome.value = court.nome;
       form.modalidade.value = court.modalidade;
+      form.cep.value = court.cep ? formatCep(court.cep) : "";
       form.bairro.value = court.bairro;
-      form.endereco.value = court.endereco;
-      form.preco.value = court.preco;
+      form.endereco.value = addressParts.endereco;
+      form.numero.value = court.numero || addressParts.numero;
+      form.preco.value = formatCurrency(Number(court.preco || 0));
       form.abertura.value = court.horarioAbertura;
       form.fechamento.value = court.horarioFechamento;
       form.status.value = court.status;
       form.duracaoPadrao.value = String(court.duracaoPadrao || "60");
-      form.pausaAtiva.checked = Boolean(court.pausaAtiva);
-      form.pausaInicio.value = court.pausaInicio || "12:00";
-      form.pausaFim.value = court.pausaFim || "14:30";
+      dayHoursDraft = normalizeWeeklyHours(court);
+      pauseDraftByDay = normalizePausesByDay(court);
       photoDraft = Array.isArray(court.fotos) && court.fotos.length ? [...court.fotos] : [court.imagem];
       setOperatingDays(court.diasFuncionamento || DEFAULT_OPERATING_DAYS);
+      setPauseDraft(getCourtPauseRanges(court, activeOperatingDay), activeOperatingDay);
       form.querySelectorAll('input[name="estrutura"]').forEach((checkbox) => {
         checkbox.checked = court.estrutura.includes(checkbox.value);
       });
@@ -4257,6 +4870,7 @@
       syncCustomizedSelects(form);
       syncPauseFields();
       syncClosingMinTime();
+      setCepMessage();
       renderPhotoPreview();
 
       if (formTitle) {
@@ -4279,11 +4893,18 @@
       }
 
       photoDraft = [];
+      dayHoursDraft = buildDefaultDayHoursDraft(
+        form.abertura.value || "08:00",
+        form.fechamento.value || "22:00"
+      );
       setOperatingDays(DEFAULT_OPERATING_DAYS);
+      pauseDraftByDay = buildDefaultPauseDraftByDay();
+      setPauseDraft([], activeOperatingDay);
       syncPauseFields();
       syncClosingMinTime();
       syncCustomizedSelects(form);
       renderPhotoPreview();
+      setCepMessage();
       setMessage(hoursMessage);
       setMessage(pauseMessage);
 
@@ -4305,8 +4926,11 @@
         .map(
           (court) => {
             const operatingDays = formatOperatingDays(court.diasFuncionamento);
-            const pauseInfo = court.pausaAtiva
-              ? `<small>Pausa: ${court.pausaInicio} às ${court.pausaFim}</small>`
+            const pauseRanges = getCourtPauseRanges(court);
+            const pauseInfo = court.pausaAtiva && pauseRanges.length
+              ? `<small>Pausas: ${formatPauseSummary(pauseRanges)}</small>`
+              : court.pausaAtiva && Object.values(normalizePausesByDay(court)).some((items) => items.length)
+                ? "<small>Pausas: variam por dia</small>"
               : "";
             return `
             <tr>
@@ -4320,7 +4944,7 @@
               <td data-label="Bairro">${court.bairro}</td>
               <td data-label="Funcionamento">
                 <div class="admin-operating-summary">
-                  <span>${operatingDays} • ${court.horarioAbertura} às ${court.horarioFechamento}</span>
+                  <span>${operatingDays} • ${getCourtOperatingSummary(court)}</span>
                   ${pauseInfo}
                 </div>
               </td>
@@ -4372,6 +4996,20 @@
         (court) => Number(court.id) === Number(state.adminEditingCourtId)
       );
       const coverImage = photoDraft[0] || existingCourt?.imagem || getBaseCourtImage(form.modalidade.value);
+      const pausesByDayPayload = operatingDays.reduce((accumulator, weekday) => {
+        accumulator[weekday] = getPauseRanges(weekday);
+        return accumulator;
+      }, {});
+      const hasAnyPauseConfigured =
+        Object.values(pausesByDayPayload).some((items) => Array.isArray(items) && items.length);
+      const pauseRanges = getPauseRanges(activeOperatingDay);
+      const weeklyHoursPayload = operatingDays.reduce((accumulator, weekday) => {
+        accumulator[weekday] = {
+          abertura: dayHoursDraft[weekday]?.abertura || form.abertura.value || "08:00",
+          fechamento: dayHoursDraft[weekday]?.fechamento || form.fechamento.value || "22:00",
+        };
+        return accumulator;
+      }, {});
       const payload = {
         id:
           state.adminEditingCourtId ||
@@ -4380,16 +5018,21 @@
         modalidade: form.modalidade.value,
         bairro: form.bairro.value,
         cidade: "Ribeirão Preto",
-        preco: Number(form.preco.value || 0),
-        endereco: form.endereco.value.trim(),
+        cep: normalizeCep(form.cep.value),
+        numero: String(form.numero.value || "").trim(),
+        preco: parseCurrencyValue(form.preco.value),
+        endereco: buildAddress(form.endereco.value, form.numero.value),
         estrutura: collectStructure(),
         avaliacao: 4.7,
         horarioAbertura: form.abertura.value || "08:00",
         horarioFechamento: form.fechamento.value || "22:00",
         diasFuncionamento: operatingDays,
-        pausaAtiva: Boolean(form.pausaAtiva?.checked),
-        pausaInicio: form.pausaInicio.value || "12:00",
-        pausaFim: form.pausaFim.value || "14:30",
+        horariosPorDia: weeklyHoursPayload,
+        pausasPorDia: pausesByDayPayload,
+        pausaAtiva: Boolean(hasAnyPauseConfigured),
+        pausas: pauseRanges,
+        pausaInicio: pauseRanges[0]?.inicio || "12:00",
+        pausaFim: pauseRanges[0]?.fim || "14:30",
         duracaoPadrao: form.duracaoPadrao.value || "60",
         descricao:
           "Quadra cadastrada pelo gestor para disponibilização na plataforma.",
@@ -4422,18 +5065,108 @@
       syncClosingMinTime();
       validateCourtHours();
     });
+    form.cep?.addEventListener("input", () => {
+      form.cep.value = formatCep(form.cep.value);
+
+      if (normalizeCep(form.cep.value).length < 8) {
+        setCepMessage();
+      }
+    });
+    form.preco?.addEventListener("input", () => {
+      form.preco.value = formatCurrencyInput(form.preco.value);
+    });
+    form.cep?.addEventListener("blur", lookupCep);
     form.fechamento?.addEventListener("change", validateCourtHours);
     form.pausaAtiva?.addEventListener("change", () => {
+      if (form.pausaAtiva.checked) {
+        if (!isPauseEnabledForDay(activeOperatingDay)) {
+          setPauseDraft([{ inicio: "12:00", fim: "14:30" }], activeOperatingDay);
+        }
+      } else {
+        setPauseDraft([], activeOperatingDay);
+      }
       syncPauseFields();
       validateCourtHours();
     });
-    form.pausaInicio?.addEventListener("change", validateCourtHours);
-    form.pausaFim?.addEventListener("change", validateCourtHours);
+    pauseAddButton?.addEventListener("click", () => {
+      pauseDraft.push({ inicio: "12:00", fim: "14:30" });
+      pauseDraftByDay[activeOperatingDay] = pauseDraft.map((pauseItem) => ({ ...pauseItem }));
+      renderPauseRows();
+      validateCourtHours();
+    });
+    pauseList?.addEventListener("click", (event) => {
+      const removeButton = event.target.closest("[data-pause-remove]");
+
+      if (!removeButton) {
+        return;
+      }
+
+      const index = Number(removeButton.dataset.pauseRemove);
+
+      if (Number.isNaN(index) || pauseDraft.length <= 1) {
+        return;
+      }
+
+      pauseDraft.splice(index, 1);
+      pauseDraftByDay[activeOperatingDay] = pauseDraft.map((pauseItem) => ({ ...pauseItem }));
+      renderPauseRows();
+      validateCourtHours();
+    });
+
+    dayHoursDraft = buildDefaultDayHoursDraft(
+      form.abertura.value || "08:00",
+      form.fechamento.value || "22:00"
+    );
+    activeOperatingDay = collectOperatingDays()[0] || "dom";
+    pauseDraftByDay = buildDefaultPauseDraftByDay();
+    setPauseDraft([], activeOperatingDay);
+    renderDaySelector();
+    syncOperatingTimePickers();
 
     form.querySelectorAll("[data-weekday-preset]").forEach((button) => {
       button.addEventListener("click", () => {
         setOperatingDays(weekdayPresets[button.dataset.weekdayPreset] || []);
+        validateCourtHours();
       });
+    });
+
+    form.querySelectorAll('input[name="diasFuncionamento"]').forEach((checkbox) => {
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked && !dayHoursDraft[checkbox.value]) {
+          dayHoursDraft[checkbox.value] = {
+            abertura: form.abertura.value || "08:00",
+            fechamento: form.fechamento.value || "22:00",
+          };
+        }
+
+        if (checkbox.checked && !pauseDraftByDay[checkbox.value]) {
+          pauseDraftByDay[checkbox.value] = [];
+        }
+
+        if (!collectOperatingDays().includes(activeOperatingDay)) {
+          activeOperatingDay = collectOperatingDays()[0] || "dom";
+        }
+
+        renderDaySelector();
+        syncOperatingTimePickers();
+        setPauseDraft(pauseDraftByDay[activeOperatingDay] || [], activeOperatingDay);
+        syncPauseFields();
+        validateCourtHours();
+      });
+    });
+
+    dayHoursSelector?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-day-switch]");
+
+      if (!button) {
+        return;
+      }
+
+      activeOperatingDay = button.dataset.daySwitch || activeOperatingDay;
+      renderDaySelector();
+      syncOperatingTimePickers();
+      setPauseDraft(pauseDraftByDay[activeOperatingDay] || [], activeOperatingDay);
+      syncPauseFields();
     });
 
     prevStepButtons.forEach((button) => {
