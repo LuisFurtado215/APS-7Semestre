@@ -1096,13 +1096,6 @@
 
     const startMinutes = timeToMinutes(startTime);
     const endMinutes = startMinutes + Number(duration || 1) * 60;
-    const operatingWindow = getCourtOperatingWindowForDate(court, bookingDate);
-    const openMinutes = timeToMinutes(operatingWindow.abertura);
-    const closeMinutes = timeToMinutes(operatingWindow.fechamento);
-
-    if (startMinutes < openMinutes || endMinutes > closeMinutes) {
-      return false;
-    }
 
     if (
       bookingDate === getTodayDateString() &&
@@ -1141,20 +1134,10 @@
   };
 
   const getSelectableTimeOptions = (court, schedule, duration = 1, bookingDate = "") => {
-    const options = [];
-    const operatingWindow = getCourtOperatingWindowForDate(court, bookingDate);
-    const start = timeToMinutes(operatingWindow.abertura);
-    const end = timeToMinutes(getLatestBookingStartTime(court, bookingDate));
-
-    for (let minutes = start; minutes <= end; minutes += 5) {
-      const time = minutesToTime(minutes);
-      options.push({
-        value: time,
-        disabled: !isRangeAvailableForCourt(court, schedule, time, duration, bookingDate),
-      });
-    }
-
-    return options;
+    return TIME_SLOTS.map((time) => ({
+      value: time,
+      disabled: !isRangeAvailableForCourt(court, schedule, time, duration, bookingDate),
+    }));
   };
 
   const getEndTimeOptions = (court, schedule, startTime, maxDuration = 4, bookingDate = "") => {
@@ -1162,11 +1145,9 @@
       return [];
     }
 
-    const operatingWindow = getCourtOperatingWindowForDate(court, bookingDate);
-    const closeMinutes = timeToMinutes(operatingWindow.fechamento);
     const startMinutes = timeToMinutes(startTime);
-    const maxByClose = Math.floor((closeMinutes - startMinutes) / 60);
-    const limit = Math.max(0, Math.min(maxDuration, maxByClose));
+    const maxByDay = Math.floor((24 * 60 - startMinutes) / 60);
+    const limit = Math.max(0, Math.min(maxDuration, maxByDay));
     const options = [];
 
     for (let duration = 1; duration <= limit; duration += 1) {
@@ -1961,7 +1942,7 @@
     return [];
   };
 
-  const getSchedule = (courtId, date) => {
+  const getSchedule = (courtId, date, { ignoreManualSlotOverrides = false } = {}) => {
     const reservations = getReservations();
     const court = getCourtById(courtId);
     const weekdayKey = getWeekdayKeyFromDate(date);
@@ -2048,30 +2029,35 @@
       });
     });
 
-    const customForDay = dayOverride.slots || {};
+    if (!ignoreManualSlotOverrides) {
+      const customForDay = dayOverride.slots || {};
 
-    schedule.forEach((slot) => {
-      const customState = customForDay[slot.horario];
+      schedule.forEach((slot) => {
+        const customState = customForDay[slot.horario];
 
-      if (customState) {
-        slot.status = customState.status;
-        slot.descricao =
-          customState.status === "Bloqueado"
-            ? "Bloqueio manual"
-            : customState.status === "Disponível"
-              ? "Livre para agendamento"
-              : slot.descricao;
-        slot.cliente = customState.cliente || slot.cliente;
-        slot.telefone = customState.telefone || slot.telefone;
-        slot.modalidade = customState.modalidade || slot.modalidade;
-      }
-    });
+        if (customState && slot.status !== "Reservado") {
+          slot.status = customState.status;
+          slot.descricao =
+            customState.status === "Bloqueado"
+              ? "Bloqueio manual"
+              : customState.status === "Disponível"
+                ? "Livre para agendamento"
+                : slot.descricao;
+          slot.cliente = customState.cliente || slot.cliente;
+          slot.telefone = customState.telefone || slot.telefone;
+          slot.modalidade = customState.modalidade || slot.modalidade;
+        }
+      });
+    }
 
     return schedule;
   };
 
   const setScheduleStatus = (courtId, date, time, status) => {
     const court = getCourtById(courtId);
+    const baseSlot = getSchedule(courtId, date, { ignoreManualSlotOverrides: true }).find(
+      (slot) => slot.horario === time
+    );
     upsertScheduleOverride(courtId, date, (current) => {
       const next = {
         slots: { ...(current.slots || {}) },
@@ -2081,16 +2067,27 @@
         },
       };
 
-      next.slots[time] = {
-        status,
-        modalidade: court?.modalidade || "",
-        cliente:
-          status === "Reservado" ? "Reserva Manual" : next.slots[time]?.cliente || "",
-        telefone: next.slots[time]?.telefone || "",
-      };
-
-      if (status === "Disponível") {
+      if (status === "Bloqueado" && baseSlot?.status && baseSlot.status !== "Disponível") {
         delete next.slots[time];
+      } else if (status === "Disponível") {
+        if (baseSlot?.status === "Disponível") {
+          delete next.slots[time];
+        } else {
+          next.slots[time] = {
+            status,
+            modalidade: court?.modalidade || "",
+            cliente: "",
+            telefone: "",
+          };
+        }
+      } else {
+        next.slots[time] = {
+          status,
+          modalidade: court?.modalidade || "",
+          cliente:
+            status === "Reservado" ? "Reserva Manual" : next.slots[time]?.cliente || "",
+          telefone: next.slots[time]?.telefone || "",
+        };
       }
 
       return next;
@@ -3154,34 +3151,9 @@
         return [];
       }
 
-      const startMinutes = timeToMinutes(startTime);
-      const operatingWindow = getCourtOperatingWindowForDate(court, selectedBookingDate);
-      const closeMinutes = timeToMinutes(operatingWindow.fechamento);
-      const candidateTimes = [];
-
-      for (let minutes = startMinutes + 60; minutes <= closeMinutes; minutes += 60) {
-        candidateTimes.push(minutesToTime(minutes));
-      }
-
-      return candidateTimes.reduce((options, endTime) => {
-        const duration = getDurationFromRange(startTime, endTime);
-
-        if (duration < 1) {
-          return options;
-        }
-
-        if (!isRangeAvailableForCourt(court, schedule, startTime, duration, selectedBookingDate)) {
-          return options;
-        }
-
-        options.push({
-          value: endTime,
-          label: endTime,
-          disabled: false,
-        });
-
-        return options;
-      }, []);
+      return getEndTimeOptions(court, schedule, startTime, 4, selectedBookingDate).filter(
+        (option) => !option.disabled
+      );
     };
 
     const getReservationSnapshot = () => {
@@ -3864,141 +3836,62 @@
     const getAgendaSummary = (slots) => {
       const occupied = slots.filter((slot) => slot.status === "ocupado").length;
       const available = slots.filter((slot) => slot.status === "disponivel").length;
-      return { occupied, available };
+      const unavailable = slots.filter((slot) => slot.status === "indisponivel").length;
+      return { occupied, available, unavailable };
     };
 
-    const createEmptyAgendaSlots = () =>
-      TIME_SLOTS.map((start) => ({
-        start,
-        end: getBookingEndTime(start, 1),
-        status: "disponivel",
-      }));
-
-    const upsertAgendaSlot = (slots, nextSlot) => {
-      const existingIndex = slots.findIndex((slot) => slot.start === nextSlot.start);
-
-      if (existingIndex >= 0) {
-        slots[existingIndex] = {
-          ...slots[existingIndex],
-          ...nextSlot,
-        };
-        return;
-      }
-
-      slots.push(nextSlot);
-      slots.sort((left, right) => left.start.localeCompare(right.start));
-    };
-
-    const getDashboardAgendaData = (confirmedReservations, activeCourts = []) => {
-      const todayDate = parseDateString(getTodayDateString()) || new Date();
-      const days = [0, 1, 2, 4, 6].map((offset) =>
-        formatDateString(new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate() + offset))
-      );
-
-      const agendaData = days.reduce((accumulator, dateString) => {
-        accumulator[dateString] = createEmptyAgendaSlots();
-        return accumulator;
-      }, {});
-      const courtsByName = activeCourts.reduce((accumulator, court) => {
-        accumulator[court.nome] = court;
-        return accumulator;
-      }, {});
+    const getDashboardAgendaData = (activeCourts = [], dates = []) => {
       const getCourtLocation = (court) =>
         [court?.endereco, court?.bairro, court?.cidade].filter(Boolean).join(" • ") ||
         "Local informado no cadastro";
-      const getAgendaDetails = (entry) => {
-        const court = courtsByName[entry.quadra] || {};
-        return {
-          local: entry.local || getCourtLocation(court),
-          valor: Number(entry.valor ?? court.preco ?? 0),
-        };
-      };
 
-      const mockEntries = [
-        {
-          date: days[0],
-          start: "09:00",
-          status: "ocupado",
-          cliente: "Camila Torres",
-          quadra: "Arena Beach RP",
-          modalidade: "Beach Tennis",
-        },
-        {
-          date: days[0],
-          start: "18:00",
-          status: "ocupado",
-          cliente: "Equipe Norte",
-          quadra: "Quadra Society Norte",
-          modalidade: "Futebol",
-        },
-        {
-          date: days[1],
-          start: "08:00",
-          status: "ocupado",
-          cliente: "Marcos Vinicius",
-          quadra: "Tennis Club Ribeirão",
-          modalidade: "Tênis",
-        },
-        {
-          date: days[1],
-          start: "20:00",
-          status: "ocupado",
-          cliente: "Juliana Freitas",
-          quadra: "Arena Multi Esportes",
-          modalidade: "Vôlei",
-        },
-        {
-          date: days[2],
-          start: "10:00",
-          status: "ocupado",
-          cliente: "Pedro Henrique",
-          quadra: "Complexo Esportivo Bonfim",
-          modalidade: "Futebol",
-        },
-        {
-          date: days[4],
-          start: "14:00",
-          status: "ocupado",
-          cliente: "Marina Costa",
-          quadra: "Beach Point RP",
-          modalidade: "Beach Tennis",
-        },
-      ];
+      return dates.reduce((accumulator, dateString) => {
+        accumulator[dateString] = activeCourts
+          .flatMap((court) =>
+            getSchedule(court.id, dateString).map((slot) => {
+              const isAvailable = slot.status === "Disponível";
+              const isOccupied = slot.status === "Reservado";
+              const agendaStatus = isOccupied
+                ? "ocupado"
+                : isAvailable
+                  ? "disponivel"
+                  : "indisponivel";
 
-      mockEntries.forEach((entry) => {
-        const slots = agendaData[entry.date] || createEmptyAgendaSlots();
-        const details = getAgendaDetails(entry);
-        agendaData[entry.date] = slots;
-        upsertAgendaSlot(slots, {
-          start: entry.start,
-          end: getBookingEndTime(entry.start, 1),
-          status: entry.status,
-          cliente: entry.cliente,
-          quadra: entry.quadra,
-          modalidade: entry.modalidade,
-          local: details.local,
-          valor: details.valor,
-        });
-      });
+              return {
+                start: slot.horario,
+                end: getBookingEndTime(slot.horario, 1),
+                status: agendaStatus,
+                rawStatus: slot.status,
+                reason: slot.descricao || slot.status,
+                cliente: slot.cliente || "",
+                quadra: court.nome,
+                modalidade: slot.modalidade || court.modalidade,
+                local: getCourtLocation(court),
+                valor: Number(court.preco || 0),
+              };
+            })
+          )
+          .sort(
+            (left, right) =>
+              left.start.localeCompare(right.start) || left.quadra.localeCompare(right.quadra)
+          );
 
-      confirmedReservations.forEach((reservation) => {
-        const slots = agendaData[reservation.data] || createEmptyAgendaSlots();
-        const details = getAgendaDetails(reservation);
-        agendaData[reservation.data] = slots;
-        upsertAgendaSlot(slots, {
-          start: reservation.horario,
-          end: getBookingEndTime(reservation.horario, reservation.duracao || 1),
-          status: "ocupado",
-          cliente: reservation.cliente,
-          quadra: reservation.quadra,
-          modalidade: reservation.modalidade,
-          local: details.local,
-          valor: Number(reservation.valor ?? details.valor ?? 0),
-        });
-      });
-
-      return agendaData;
+        return accumulator;
+      }, {});
     };
+
+    const hasDashboardOverrideForDate = (activeCourts = [], date = "") =>
+      activeCourts.some((court) => {
+        const override = getScheduleOverrideForDay(court.id, date);
+        const meta = override?.meta || {};
+
+        return (
+          Object.keys(override?.slots || {}).length > 0 ||
+          Boolean(meta.fullDayBlocked) ||
+          Boolean(meta.note) ||
+          (Array.isArray(meta.partialBlocks) && meta.partialBlocks.length > 0)
+        );
+      });
 
     const renderDashboard = () => {
       const reservations = getReservations();
@@ -4054,27 +3947,34 @@
         </article>
       `;
 
-      const agendaData = getDashboardAgendaData(confirmed, activeCourts);
       const agendaToday = getTodayDateString();
       const currentMonth = parseDateString(selectedAgendaDate) || parseDateString(agendaToday) || new Date();
       const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-      const occupiedDates = Object.keys(agendaData).filter((dateKey) =>
-        (agendaData[dateKey] || []).some((slot) => slot.status === "ocupado")
-      );
 
       if (!parseDateString(selectedAgendaDate)) {
         selectedAgendaDate = agendaToday;
       }
 
-      const selectedDaySlots =
-        agendaData[selectedAgendaDate]?.slice().sort((left, right) => left.start.localeCompare(right.start)) ||
-        createEmptyAgendaSlots();
-      const { occupied: occupiedCount, available: availableCount } = getAgendaSummary(selectedDaySlots);
       const firstWeekday = (monthStart.getDay() + 6) % 7;
       const totalDays = monthEnd.getDate();
       const previousMonthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 0).getDate();
       const totalCells = Math.ceil((firstWeekday + totalDays) / 7) * 7;
+      const monthDates = Array.from({ length: totalDays }, (_, index) =>
+        formatDateString(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), index + 1))
+      );
+      const agendaData = getDashboardAgendaData(
+        activeCourts,
+        Array.from(new Set([...monthDates, selectedAgendaDate]))
+      );
+      const selectedDaySlots =
+        agendaData[selectedAgendaDate]?.slice().sort((left, right) => left.start.localeCompare(right.start)) ||
+        [];
+      const {
+        occupied: occupiedCount,
+        available: availableCount,
+        unavailable: unavailableCount,
+      } = getAgendaSummary(selectedDaySlots);
       const calendarCells = Array.from({ length: totalCells }, (_, index) => {
         const dayNumber = index - firstWeekday + 1;
 
@@ -4097,7 +3997,10 @@
         const date = formatDateString(
           new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dayNumber)
         );
-        const hasEvents = (agendaData[date] || []).some((slot) => slot.status === "ocupado");
+        const daySlots = agendaData[date] || [];
+        const hasEvents =
+          daySlots.some((slot) => slot.status === "ocupado") ||
+          hasDashboardOverrideForDate(activeCourts, date);
         const isToday = date === agendaToday;
         const isSelected = date === selectedAgendaDate;
 
@@ -4155,48 +4058,61 @@
             </button>
             <button class="admin-agenda-nav-button" type="button" data-agenda-step="1" aria-label="Próximo dia"></button>
           </div>
-          <p class="admin-agenda-day-summary">${occupiedCount} ocupados e ${availableCount} disponíveis ao longo do dia.</p>
+          <p class="admin-agenda-day-summary">${occupiedCount} ocupados, ${availableCount} disponíveis e ${unavailableCount} indisponíveis ao longo do dia.</p>
 
           <div class="admin-agenda-slots">
             ${selectedDaySlots
               .map((slot) => {
                 const isOccupied = slot.status === "ocupado";
+                const isAvailable = slot.status === "disponivel";
+                const statusLabel = isOccupied
+                  ? "Ocupado"
+                  : isAvailable
+                    ? "Disponível"
+                    : "Indisponível";
+                const slotClass = isOccupied
+                  ? "is-occupied"
+                  : isAvailable
+                    ? "is-available"
+                    : "is-unavailable";
                 const details = [
                   ["Quadra", slot.quadra || "Quadra não informada"],
                   ["Modalidade", slot.modalidade || "Modalidade não informada"],
                   ["Local", slot.local || "Local informado no cadastro"],
-                  ["Valor", formatCurrency(slot.valor || 0)],
+                  [isAvailable ? "Valor" : "Motivo", isAvailable ? formatCurrency(slot.valor || 0) : slot.reason || slot.rawStatus],
                 ];
 
                 return `
-                  <article class="admin-agenda-slot ${isOccupied ? "is-occupied" : "is-available"}">
+                  <article class="admin-agenda-slot ${slotClass}">
                     <button class="admin-agenda-slot-toggle" type="button" data-agenda-slot-toggle aria-expanded="false">
                       <span class="admin-agenda-slot-time">${slot.start} às ${slot.end}</span>
-                      <span class="admin-agenda-badge ${isOccupied ? "is-occupied" : "is-available"}">
-                        ${isOccupied ? "Ocupado" : "Disponível"}
+                      <span class="admin-agenda-badge ${slotClass}">
+                        ${statusLabel}
                       </span>
                     </button>
                     <p class="admin-agenda-slot-client">
                       ${
                         isOccupied
                           ? `${slot.cliente || "Cliente"} • ${slot.quadra || "Quadra"}`
-                          : "Livre para novos agendamentos."
+                          : isAvailable
+                            ? `${slot.quadra || "Quadra"} • Livre para novos agendamentos.`
+                            : `${slot.quadra || "Quadra"} • ${slot.reason || "Horário indisponível."}`
                       }
                     </p>
-                    <div class="admin-agenda-slot-details ${isOccupied ? "" : "is-empty"}" hidden>
+                    <div class="admin-agenda-slot-details ${isAvailable ? "is-empty" : ""}" hidden>
                       ${
-                        isOccupied
-                          ? details
-                              .map(
-                                ([label, value]) => `
-                                  <span>
-                                    <small>${label}</small>
-                                    <strong>${value}</strong>
-                                  </span>
-                                `
-                              )
-                              .join("")
-                          : '<strong class="admin-agenda-empty-detail">Sem Agendamento</strong>'
+                        isAvailable
+                          ? '<strong class="admin-agenda-empty-detail">Sem Agendamento</strong>'
+                          : details
+                            .map(
+                              ([label, value]) => `
+                                <span>
+                                  <small>${label}</small>
+                                  <strong>${value}</strong>
+                                </span>
+                              `
+                            )
+                            .join("")
                       }
                     </div>
                   </article>
@@ -5055,34 +4971,54 @@
         .map(
           (court) => {
             const operatingDays = formatOperatingDays(court.diasFuncionamento);
-            const pauseRanges = getCourtPauseRanges(court);
-            const pauseInfo = court.pausaAtiva && pauseRanges.length
-              ? `<small>Pausas: ${formatPauseSummary(pauseRanges)}</small>`
-              : court.pausaAtiva && Object.values(normalizePausesByDay(court)).some((items) => items.length)
-                ? "<small>Pausas: variam por dia</small>"
-              : "";
+            const operatingRows = getCourtOperatingRows(court)
+              .map(
+                (item) =>
+                  `<span class="admin-operating-detail-item">${item.weekday} - ${item.range}</span>`
+              )
+              .join('<span class="admin-operating-detail-separator" aria-hidden="true">|</span>');
             return `
-            <tr>
+            <tr class="admin-court-summary-row" data-court-summary-row="${court.id}" aria-expanded="false">
               <td data-label="Quadra">
-                <div class="admin-court-cell">
-                  <img src="${assetUrl(court.imagem)}" alt="${court.nome}" />
-                  <strong>${court.nome}</strong>
-                </div>
+                <button
+                  type="button"
+                  class="admin-court-row-trigger"
+                  data-toggle-court-row="${court.id}"
+                  aria-expanded="false"
+                  aria-controls="admin-court-detail-${court.id}"
+                >
+                  <div class="admin-court-cell">
+                    <img src="${assetUrl(court.imagem)}" alt="${court.nome}" />
+                    <span class="admin-court-cell-copy">
+                      <strong>${court.nome}</strong>
+                      <small>${operatingDays}</small>
+                    </span>
+                  </div>
+                </button>
               </td>
               <td data-label="Modalidade">${court.modalidade}</td>
               <td data-label="Bairro">${court.bairro}</td>
-              <td data-label="Funcionamento">
-                <div class="admin-operating-summary">
-                  <span>${operatingDays} • ${getCourtOperatingSummary(court)}</span>
-                  ${pauseInfo}
-                </div>
-              </td>
               <td data-label="Preço">${formatCurrency(court.preco)}</td>
               <td data-label="Status"><span class="status-pill ${statusClass(court.status)}">${court.status}</span></td>
               <td data-label="Ações">
                 <div class="table-actions admin-table-actions">
                   <button type="button" class="admin-table-action" data-edit-court="${court.id}">Editar</button>
                   <button type="button" class="admin-table-action danger" data-delete-court="${court.id}">Excluir</button>
+                </div>
+              </td>
+            </tr>
+            <tr
+              class="admin-court-detail-row"
+              id="admin-court-detail-${court.id}"
+              data-court-detail-row="${court.id}"
+              hidden
+            >
+              <td colspan="6">
+                <div class="admin-operating-detail">
+                  <strong>Funcionamento por dia</strong>
+                  <div class="admin-operating-detail-list">
+                    ${operatingRows}
+                  </div>
                 </div>
               </td>
             </tr>
@@ -5370,9 +5306,34 @@
     });
 
     tableNode.addEventListener("click", (event) => {
+      const toggleButton = event.target.closest("[data-toggle-court-row]");
       const editButton = event.target.closest("[data-edit-court]");
       const deleteButton = event.target.closest("[data-delete-court]");
+      const summaryRow = event.target.closest("[data-court-summary-row]");
       const courts = getManagedCourts();
+
+      if (toggleButton) {
+        const courtId = toggleButton.dataset.toggleCourtRow;
+        const detailRow = tableNode.querySelector(`[data-court-detail-row="${courtId}"]`);
+        const summaryRow = tableNode.querySelector(`[data-court-summary-row="${courtId}"]`);
+        const isExpanded = toggleButton.getAttribute("aria-expanded") === "true";
+
+        toggleButton.setAttribute("aria-expanded", String(!isExpanded));
+        summaryRow?.setAttribute("aria-expanded", String(!isExpanded));
+
+        if (detailRow) {
+          detailRow.hidden = isExpanded;
+        }
+
+        return;
+      }
+
+      if (summaryRow && !event.target.closest(".admin-table-actions")) {
+        const rowToggleButton = summaryRow.querySelector("[data-toggle-court-row]");
+
+        rowToggleButton?.click();
+        return;
+      }
 
       if (editButton) {
         const court = courts.find(
@@ -5426,10 +5387,10 @@
   const initAdminSchedules = () => {
     const courtSelect = document.getElementById("admin-schedule-court");
     const datePickerRoot = document.getElementById("admin-schedule-date");
-    const scheduleNode = document.getElementById("admin-schedule-grid");
-    const contextCourtNode = document.getElementById("admin-schedule-context-court");
-    const contextModalityNode = document.getElementById("admin-schedule-context-modality");
+    const contextSelectedNode = document.getElementById("admin-schedule-context-selected");
     const contextHoursNode = document.getElementById("admin-schedule-context-hours");
+    const contextDaysNode = document.getElementById("admin-schedule-context-days");
+    const scheduleNode = document.getElementById("admin-schedule-grid");
     const summaryNode = document.getElementById("admin-day-summary-grid");
     const alertNode = document.getElementById("admin-day-alert");
     const bannerNode = document.getElementById("admin-schedule-banner");
@@ -5444,10 +5405,10 @@
     if (
       !courtSelect ||
       !datePickerRoot ||
-      !scheduleNode ||
-      !contextCourtNode ||
-      !contextModalityNode ||
+      !contextSelectedNode ||
       !contextHoursNode ||
+      !contextDaysNode ||
+      !scheduleNode ||
       !summaryNode ||
       !alertNode ||
       !bannerNode ||
@@ -5464,6 +5425,9 @@
 
     let selectedScheduleDate = getTodayDateString();
     let hideClosedSlots = true;
+    const scheduleCalendarWeekdays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
+    let scheduleCalendarMonth =
+      parseDateString(selectedScheduleDate) || parseDateString(getTodayDateString()) || new Date();
 
     const PERIOD_GROUPS = [
       { key: "madrugada", label: "Madrugada", from: 0, to: 5 },
@@ -5478,6 +5442,179 @@
 
     const capitalize = (value = "") =>
       String(value || "").charAt(0).toUpperCase() + String(value || "").slice(1);
+
+    const formatScheduleOperatingDays = (days = []) => {
+      const normalized = days.length ? days : DEFAULT_OPERATING_DAYS;
+      const daySet = new Set(normalized);
+
+      if (DEFAULT_OPERATING_DAYS.every((day) => daySet.has(day))) {
+        return "Todos os dias";
+      }
+
+      if (
+        ["seg", "ter", "qua", "qui", "sex"].every((day) => daySet.has(day)) &&
+        !daySet.has("sab") &&
+        !daySet.has("dom")
+      ) {
+        return "Seg a Sex";
+      }
+
+      if (daySet.size === 2 && daySet.has("sab") && daySet.has("dom")) {
+        return "Fins de semana";
+      }
+
+      return normalized.map((day) => WEEKDAY_LABELS[day] || day).join(", ");
+    };
+
+    const formatScheduleMonthLabel = (value) => {
+      const date = parseDateString(value);
+
+      if (!date) {
+        return "";
+      }
+
+      return capitalize(
+        new Intl.DateTimeFormat("pt-BR", {
+          month: "long",
+          year: "numeric",
+        }).format(date)
+      );
+    };
+
+    const canGoToPreviousScheduleMonth = () => {
+      const today = parseDateString(getTodayDateString()) || new Date();
+
+      return (
+        scheduleCalendarMonth.getFullYear() > today.getFullYear() ||
+        (scheduleCalendarMonth.getFullYear() === today.getFullYear() &&
+          scheduleCalendarMonth.getMonth() > today.getMonth())
+      );
+    };
+
+    const renderScheduleDateCalendar = () => {
+      const today = getTodayDateString();
+      const selectedCourtId = Number(courtSelect.value);
+      const selectedDate =
+        parseDateString(selectedScheduleDate) || parseDateString(today) || new Date();
+      const monthStart = new Date(
+        scheduleCalendarMonth.getFullYear(),
+        scheduleCalendarMonth.getMonth(),
+        1
+      );
+      const monthEnd = new Date(
+        scheduleCalendarMonth.getFullYear(),
+        scheduleCalendarMonth.getMonth() + 1,
+        0
+      );
+      const firstWeekday = monthStart.getDay();
+      const totalDays = monthEnd.getDate();
+      const previousMonthEnd = new Date(
+        scheduleCalendarMonth.getFullYear(),
+        scheduleCalendarMonth.getMonth(),
+        0
+      ).getDate();
+      const totalCells = Math.ceil((firstWeekday + totalDays) / 7) * 7;
+      const totalWeeks = totalCells / 7;
+      const calendarCells = Array.from({ length: totalCells }, (_, index) => {
+        const dayNumber = index - firstWeekday + 1;
+
+        if (dayNumber < 1) {
+          return {
+            label: previousMonthEnd + dayNumber,
+            className: "is-muted",
+            disabled: true,
+          };
+        }
+
+        if (dayNumber > totalDays) {
+          return {
+            label: dayNumber - totalDays,
+            className: "is-muted",
+            disabled: true,
+          };
+        }
+
+        const date = formatDateString(
+          new Date(scheduleCalendarMonth.getFullYear(), scheduleCalendarMonth.getMonth(), dayNumber)
+        );
+        const hasException =
+          selectedCourtId > 0 && getOverrideSummary(selectedCourtId, date).hasOverride;
+        const isToday = date === today;
+        const isSelected = date === selectedScheduleDate;
+        const isPast = date < today;
+
+        return {
+          label: dayNumber,
+          date,
+          hasException,
+          className: [
+            hasException ? "has-events" : "",
+            isToday ? "is-today" : "",
+            isSelected ? "is-selected" : "",
+            isPast ? "is-muted" : "",
+          ]
+            .filter(Boolean)
+            .join(" "),
+          disabled: isPast,
+        };
+      });
+
+      datePickerRoot.innerHTML = `
+        <div class="admin-agenda-calendar admin-schedule-inline-calendar ${totalWeeks >= 6 ? "is-six-weeks" : ""}">
+          <div class="admin-schedule-inline-calendar-head">
+            <button
+              class="admin-agenda-nav-button admin-schedule-calendar-nav"
+              type="button"
+              data-schedule-month-step="-1"
+              data-agenda-step="-1"
+              aria-label="Mês anterior"
+              ${canGoToPreviousScheduleMonth() ? "" : "disabled"}
+            ></button>
+            <strong>${formatScheduleMonthLabel(formatDateString(scheduleCalendarMonth))}</strong>
+            <button
+              class="admin-agenda-nav-button admin-schedule-calendar-nav"
+              type="button"
+              data-schedule-month-step="1"
+              data-agenda-step="1"
+              aria-label="Próximo mês"
+            ></button>
+          </div>
+          <div class="admin-agenda-weekdays">
+            ${scheduleCalendarWeekdays.map((weekday) => `<span>${weekday}</span>`).join("")}
+          </div>
+          <div class="admin-agenda-days">
+            ${calendarCells
+              .map(
+                (cell) => `
+                  <button
+                    class="admin-agenda-day ${cell.className || ""}"
+                    type="button"
+                    ${cell.disabled ? "disabled" : ""}
+                    ${cell.date ? `data-schedule-date="${cell.date}"` : ""}
+                  >
+                    <span>${cell.label}</span>
+                    ${cell.hasException ? '<i aria-hidden="true"></i>' : ""}
+                  </button>
+                `
+              )
+              .join("")}
+          </div>
+        </div>
+      `;
+    };
+
+    const renderContextBase = (court) => {
+      if (!court) {
+        contextSelectedNode.textContent = "-";
+        contextHoursNode.textContent = "Funcionamento padrão: -";
+        contextDaysNode.textContent = "Dias ativos: -";
+        return;
+      }
+
+      contextSelectedNode.textContent = `${court.nome} • ${court.modalidade}`;
+      contextHoursNode.textContent = `Funcionamento padrão: ${getCourtOperatingSummary(court)}`;
+      contextDaysNode.textContent = `Dias ativos: ${formatScheduleOperatingDays(court.diasFuncionamento)}`;
+    };
 
     const getWeekdayLongLabel = (date) => {
       const parsedDate = parseDateString(date);
@@ -5592,9 +5729,9 @@
       const map = {
         Disponível: "Livre",
         Reservado: "Reserva",
-        Bloqueado: "Indisp.",
-        Pausa: "Pausa",
-        Fechado: "Fechado",
+        Bloqueado: "Indisponível",
+        Pausa: "Indisponível",
+        Fechado: "Indisponível",
       };
 
       return map[compactStatus] || compactStatus;
@@ -5666,13 +5803,6 @@
         })
         .filter((item) => item.hasOverride)
         .sort((left, right) => left.date.localeCompare(right.date));
-
-    const renderContext = (court, date, schedule) => {
-      const operatingLabel = getCourtOperatingLabelForDate(court, date);
-      contextCourtNode.textContent = court.nome;
-      contextModalityNode.textContent = court.modalidade;
-      contextHoursNode.textContent = operatingLabel.range;
-    };
 
     const renderSummary = (court, date, schedule) => {
       const overrideSummary = getOverrideSummary(court.id, date);
@@ -5771,13 +5901,18 @@
                     let action = `<button class="admin-slot-action is-disabled" type="button" disabled>—</button>`;
 
                     if (!overrideSummary.hasFullDayBlock && slot.status === "Disponível") {
-                      action = `<button class="admin-slot-action" type="button" data-block-slot="${slot.horario}">Bloquear</button>`;
-                    } else if (!overrideSummary.hasFullDayBlock && slot.status === "Bloqueado") {
-                      action = `<button class="admin-slot-action" type="button" data-release-slot="${slot.horario}">Liberar</button>`;
+                      action = `<button class="admin-slot-action admin-slot-action-compact" type="button" data-block-slot="${slot.horario}">Bloquear</button>`;
+                    } else if (
+                      !overrideSummary.hasFullDayBlock &&
+                      (slot.status === "Bloqueado" ||
+                        slot.status === "Pausa" ||
+                        slot.status === "Fora do funcionamento")
+                    ) {
+                      action = `<button class="admin-slot-action admin-slot-action-compact" type="button" data-release-slot="${slot.horario}">Liberar</button>`;
                     } else if (slot.status === "Reservado") {
                       action = `
                         <button
-                          class="admin-slot-action"
+                          class="admin-slot-action admin-slot-action-compact"
                           type="button"
                           data-view-slot="${slot.horario}"
                           data-cliente="${slot.cliente || ""}"
@@ -5789,19 +5924,32 @@
                       `;
                     }
 
+                    const showStatusBadge =
+                      compactStatus !== "Disponível" &&
+                      compactStatus !== "Bloqueado" &&
+                      compactStatus !== "Pausa" &&
+                      compactStatus !== "Fechado";
+                    const statusBadge = showStatusBadge
+                      ? `<span class="status-pill ${statusClass(slot.status)}">${compactStatus}</span>`
+                      : "";
+                    const showCompactDescription =
+                      compactDescription !== compactStatus || compactStatus === "Pausa" || compactStatus === "Fechado";
+
                     return `
                       <article class="admin-schedule-slot ${statusClass(slot.status)}">
-                        <strong class="admin-schedule-slot-time">${slot.horario}</strong>
-                        <div class="admin-schedule-slot-copy">
-                          <strong>${compactStatus}</strong>
-                          <p>${compactDescription}</p>
+                        <div class="admin-schedule-slot-main">
+                          <strong class="admin-schedule-slot-time">${slot.horario}</strong>
+                          <div class="admin-schedule-slot-copy">
+                            <strong>${compactStatus}</strong>
+                            ${showCompactDescription ? `<p>${compactDescription}</p>` : ""}
+                          </div>
                         </div>
-                        <div class="admin-schedule-slot-meta">
-                          <span class="status-pill ${statusClass(slot.status)}">${compactStatus}</span>
+                        <div class="admin-schedule-slot-actions-panel">
                           <div class="admin-slot-actions">
                             ${action}
                           </div>
                         </div>
+                        ${statusBadge ? `<div class="admin-schedule-slot-badge">${statusBadge}</div>` : ""}
                       </article>
                     `;
                   })
@@ -5868,22 +6016,15 @@
 
       if (courts.some((court) => String(court.id) === String(previousValue))) {
         courtSelect.value = previousValue;
+      } else if (courts[0]) {
+        courtSelect.value = String(courts[0].id);
       }
 
       syncCustomizedSelects(courtSelect.parentElement);
+      renderScheduleDateCalendar();
     };
 
-    const scheduleDatePicker = createCustomDatePicker(datePickerRoot, {
-      onChange: (nextValue) => {
-        selectedScheduleDate = nextValue || getTodayDateString();
-        renderRows();
-      },
-    });
-
-    scheduleDatePicker.setState({
-      value: selectedScheduleDate,
-      minDate: getTodayDateString(),
-    });
+    renderScheduleDateCalendar();
 
     populateCourtSelect();
 
@@ -5894,9 +6035,7 @@
       if (!court) {
         scheduleNode.innerHTML = `<div class="empty-state">Cadastre uma quadra para gerenciar horários.</div>`;
         summaryNode.innerHTML = "";
-        contextCourtNode.textContent = "-";
-        contextModalityNode.textContent = "-";
-        contextHoursNode.textContent = "-";
+        renderContextBase(null);
         inlineSummaryNode.textContent = "";
         exceptionNode.innerHTML = "";
         bannerNode.hidden = true;
@@ -5909,10 +6048,10 @@
         return;
       }
 
+      renderContextBase(court);
       fullDayButton.disabled = false;
       toggleClosedButton.disabled = false;
       const schedule = getSchedule(courtId, selectedScheduleDate);
-      renderContext(court, selectedScheduleDate, schedule);
       renderSummary(court, selectedScheduleDate, schedule);
       renderScheduleGrid(court, selectedScheduleDate, schedule);
       renderExceptions(courtId);
@@ -6114,6 +6253,34 @@
     };
 
     courtSelect.addEventListener("change", renderRows);
+
+    datePickerRoot.addEventListener("click", (event) => {
+      const monthButton = event.target.closest("[data-schedule-month-step]");
+      const dayButton = event.target.closest("[data-schedule-date]");
+
+      if (monthButton) {
+        const step = Number(monthButton.dataset.scheduleMonthStep || 0);
+
+        if (!step || (step < 0 && !canGoToPreviousScheduleMonth())) {
+          return;
+        }
+
+        scheduleCalendarMonth = new Date(
+          scheduleCalendarMonth.getFullYear(),
+          scheduleCalendarMonth.getMonth() + step,
+          1
+        );
+        renderScheduleDateCalendar();
+        return;
+      }
+
+      if (dayButton) {
+        selectedScheduleDate = dayButton.dataset.scheduleDate || selectedScheduleDate;
+        scheduleCalendarMonth = parseDateString(selectedScheduleDate) || scheduleCalendarMonth;
+        renderScheduleDateCalendar();
+        renderRows();
+      }
+    });
     toggleClosedButton.addEventListener("click", () => {
       hideClosedSlots = !hideClosedSlots;
       renderRows();
@@ -6162,6 +6329,7 @@
 
       if (blockButton) {
         setScheduleStatus(courtId, date, blockButton.dataset.blockSlot, "Bloqueado");
+        cleanupOverrideIfEmpty(courtId, date);
         renderRows();
         notifyAdminDataChange();
         showToast("Horário bloqueado com sucesso.", "success");
@@ -6198,10 +6366,8 @@
 
       if (openButton) {
         selectedScheduleDate = openButton.dataset.openException || selectedScheduleDate;
-        scheduleDatePicker.setState({
-          value: selectedScheduleDate,
-          minDate: getTodayDateString(),
-        });
+        scheduleCalendarMonth = parseDateString(selectedScheduleDate) || scheduleCalendarMonth;
+        renderScheduleDateCalendar();
         renderRows();
       }
 

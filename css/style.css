@@ -4578,10 +4578,21 @@ body[data-page="admin-dashboard"] {
   border-color: rgba(24, 139, 74, 0.12);
 }
 
+.admin-agenda-slot.is-unavailable {
+  border-color: rgba(71, 88, 105, 0.14);
+}
+
 .admin-agenda-slot.is-available:hover {
   border-color: rgba(24, 139, 74, 0.28);
   box-shadow:
     inset 0 0 0 1px rgba(24, 139, 74, 0.16),
+    0 12px 24px rgba(0, 0, 0, 0.06);
+}
+
+.admin-agenda-slot.is-unavailable:hover {
+  border-color: rgba(71, 88, 105, 0.28);
+  box-shadow:
+    inset 0 0 0 1px rgba(71, 88, 105, 0.16),
     0 12px 24px rgba(0, 0, 0, 0.06);
 }
 
@@ -4613,6 +4624,20 @@ body[data-page="admin-dashboard"] {
     0 16px 30px rgba(24, 139, 74, 0.12);
 }
 
+.admin-agenda-slot.is-unavailable.is-open {
+  border-color: rgba(71, 88, 105, 0.3);
+  box-shadow:
+    inset 0 0 0 1px rgba(71, 88, 105, 0.18),
+    0 14px 28px rgba(71, 88, 105, 0.1);
+}
+
+.admin-agenda-slot.is-unavailable.is-open:hover {
+  border-color: rgba(71, 88, 105, 0.38);
+  box-shadow:
+    inset 0 0 0 2px rgba(71, 88, 105, 0.18),
+    0 16px 30px rgba(71, 88, 105, 0.12);
+}
+
 .admin-agenda-slot-toggle {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto 22px;
@@ -4641,6 +4666,10 @@ body[data-page="admin-dashboard"] {
 
 .admin-agenda-slot.is-available .admin-agenda-slot-toggle {
   color: #188b4a;
+}
+
+.admin-agenda-slot.is-unavailable .admin-agenda-slot-toggle {
+  color: #475569;
 }
 
 .admin-agenda-slot.is-open .admin-agenda-slot-toggle::after {
@@ -4761,6 +4790,11 @@ body[data-page="admin-dashboard"] {
 .admin-agenda-badge.is-available {
   background: rgba(24, 139, 74, 0.12);
   color: #188b4a;
+}
+
+.admin-agenda-badge.is-unavailable {
+  background: rgba(71, 88, 105, 0.12);
+  color: #475569;
 }
 
 @keyframes adminAgendaReveal {
@@ -5415,6 +5449,22 @@ body[data-page="admin-dashboard"] {
   transform: translateY(-1px);
 }
 
+.admin-slot-action-compact {
+  min-height: 28px;
+  padding: 0.28rem 0.62rem;
+  border: 1px solid rgba(242, 101, 60, 0.18);
+  background: linear-gradient(180deg, #fffaf7 0%, #ffe9df 100%);
+  box-shadow: 0 6px 14px rgba(230, 75, 42, 0.1);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.admin-slot-action-compact:hover,
+.admin-slot-action-compact:focus-visible {
+  border-color: var(--color-primary-deep);
+  box-shadow: 0 8px 18px rgba(230, 75, 42, 0.18);
+}
+
 .admin-table .table-link.danger {
   background: rgba(166, 52, 28, 0.1);
   color: #a6341c;
@@ -5446,11 +5496,6 @@ body[data-page="admin-dashboard"] {
 .admin-table td {
   font-size: 0.92rem;
   font-weight: 800;
-}
-
-.admin-schedule-top-grid {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(240px, 0.82fr);
-  align-items: end;
 }
 
 .admin-day-context-card {
@@ -5528,10 +5573,161 @@ body[data-page="admin-dashboard"] {
 .admin-schedule-context-card {
   position: relative;
   z-index: 2;
+  padding: 1.15rem;
 }
 
 .admin-schedule-context-card .date-picker-panel {
   z-index: 20;
+}
+
+.admin-schedule-context-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.45fr) minmax(320px, 0.55fr);
+  gap: 1.1rem;
+  align-items: start;
+}
+
+.admin-schedule-context-copy {
+  display: grid;
+  gap: 0.78rem;
+  align-content: start;
+  min-width: 0;
+}
+
+.admin-schedule-context-copy .section-kicker {
+  margin-bottom: 0;
+}
+
+.admin-schedule-context-copy h3 {
+  color: var(--color-dark);
+}
+
+.admin-schedule-context-copy p {
+  color: var(--color-muted-dark);
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.admin-schedule-context-field {
+  align-self: start;
+  margin-top: 0.15rem;
+}
+
+.admin-schedule-context-base {
+  display: grid;
+  gap: 0.24rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(226, 232, 240, 0.96);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+}
+
+.admin-schedule-context-base strong {
+  color: var(--color-dark);
+  font-size: 0.98rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.admin-schedule-context-base p {
+  margin: 0;
+  color: var(--color-muted-dark);
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.admin-schedule-context-calendar {
+  display: flex;
+  justify-content: flex-start;
+  align-items: start;
+  min-width: 0;
+}
+
+.admin-schedule-context-calendar .date-picker-shell {
+  width: min(100%, 388px);
+}
+
+.admin-schedule-inline-calendar {
+  gap: 0.42rem;
+  height: auto;
+  width: 100%;
+  padding: 0.78rem;
+}
+
+.admin-schedule-inline-calendar-head {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  gap: 0.45rem;
+  align-items: center;
+  margin-bottom: 0.15rem;
+}
+
+.admin-schedule-inline-calendar-head strong {
+  color: var(--color-dark);
+  font-family: "Fredoka", sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.08;
+  text-align: center;
+}
+
+.admin-schedule-calendar-nav:disabled {
+  opacity: 0.42;
+  cursor: default;
+  transform: none;
+}
+
+.admin-schedule-context-calendar .admin-agenda-weekdays,
+.admin-schedule-context-calendar .admin-agenda-days {
+  gap: 0.24rem;
+}
+
+.admin-schedule-context-calendar .admin-agenda-weekdays span {
+  font-size: 0.58rem;
+}
+
+.admin-schedule-context-calendar .admin-agenda-day {
+  min-height: 36px;
+  padding: 0.28rem;
+  border-radius: 10px;
+}
+
+.admin-schedule-context-calendar .admin-agenda-day span {
+  font-size: 0.78rem;
+}
+
+.admin-schedule-inline-calendar.is-six-weeks {
+  gap: 0.38rem;
+  padding: 0.68rem;
+}
+
+.admin-schedule-inline-calendar.is-six-weeks .admin-schedule-inline-calendar-head {
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  gap: 0.38rem;
+}
+
+.admin-schedule-inline-calendar.is-six-weeks .admin-schedule-inline-calendar-head strong {
+  font-size: 0.9rem;
+}
+
+.admin-schedule-inline-calendar.is-six-weeks .admin-agenda-weekdays,
+.admin-schedule-inline-calendar.is-six-weeks .admin-agenda-days {
+  gap: 0.2rem;
+}
+
+.admin-schedule-inline-calendar.is-six-weeks .admin-agenda-weekdays span {
+  font-size: 0.54rem;
+}
+
+.admin-schedule-inline-calendar.is-six-weeks .admin-agenda-day {
+  min-height: 32px;
+  padding: 0.22rem;
+  border-radius: 9px;
+}
+
+.admin-schedule-inline-calendar.is-six-weeks .admin-agenda-day span {
+  font-size: 0.74rem;
 }
 
 .admin-schedule-actions-grid {
@@ -5639,10 +5835,9 @@ body[data-page="admin-dashboard"] {
 
 .admin-schedule-slot {
   display: grid;
-  align-content: space-between;
-  gap: 0.45rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
   min-width: 0;
-  min-height: 102px;
   height: 100%;
   padding: 0.65rem 0.7rem;
   border: 1px solid rgba(226, 232, 240, 0.96);
@@ -5680,6 +5875,18 @@ body[data-page="admin-dashboard"] {
   background: linear-gradient(135deg, rgba(166, 52, 28, 0.16), rgba(255, 255, 255, 0.9));
 }
 
+.admin-schedule-slot-main,
+.admin-schedule-slot-actions-panel {
+  min-width: 0;
+}
+
+.admin-schedule-slot-main {
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 0.2rem;
+  align-content: start;
+}
+
 .admin-schedule-slot-time {
   color: var(--color-dark);
   font-family: "Fredoka", sans-serif;
@@ -5708,17 +5915,26 @@ body[data-page="admin-dashboard"] {
   line-height: 1.15;
 }
 
-.admin-schedule-slot-meta {
-  display: grid;
-  gap: 0.35rem;
-  justify-items: start;
-}
-
 .admin-slot-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+  justify-content: flex-end;
+  margin-left: auto;
+  align-self: end;
+}
+
+.admin-schedule-slot-actions-panel {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  min-height: 100%;
+}
+
+.admin-schedule-slot-badge {
+  display: flex;
   justify-content: flex-start;
+  grid-column: 1 / -1;
 }
 
 .admin-slot-action.is-disabled {
@@ -5773,6 +5989,12 @@ body[data-page="admin-dashboard"] {
   min-width: 190px;
 }
 
+.admin-court-cell-copy {
+  display: grid;
+  gap: 0.18rem;
+  text-align: left;
+}
+
 .admin-court-cell img {
   width: 56px;
   aspect-ratio: 16 / 11;
@@ -5786,22 +6008,81 @@ body[data-page="admin-dashboard"] {
   line-height: 1.12;
 }
 
-.admin-operating-summary {
-  display: grid;
-  gap: 0.2rem;
-  min-width: 170px;
-}
-
-.admin-operating-summary span {
-  color: var(--color-text-dark);
-  font-weight: 900;
-  line-height: 1.25;
-}
-
-.admin-operating-summary small {
+.admin-court-cell-copy small {
   color: var(--color-muted-dark);
   font-size: 0.74rem;
   font-weight: 800;
+}
+
+.admin-court-row-trigger {
+  display: block;
+  width: 100%;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.admin-court-row-trigger::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  background: center / contain no-repeat url("../assets/icons/angle-down-svgrepo-com.svg");
+  filter: brightness(0) saturate(100%) invert(42%) sepia(58%) saturate(1961%) hue-rotate(343deg)
+    brightness(95%) contrast(92%);
+  transform: translateY(-50%);
+  transition: transform var(--transition);
+}
+
+.admin-court-row-trigger[aria-expanded="true"]::after {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.admin-court-summary-row td:first-child {
+  position: relative;
+  padding-right: 2rem;
+}
+
+.admin-court-detail-row td {
+  padding-top: 0;
+}
+
+.admin-operating-detail {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.95rem 1rem 1rem;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.admin-operating-detail strong {
+  color: var(--color-dark);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-operating-detail-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  color: var(--color-text-dark);
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.admin-operating-detail-item {
+  color: inherit;
+  text-transform: capitalize;
+}
+
+.admin-operating-detail-separator {
+  color: var(--color-primary-deep);
+  font-weight: 900;
 }
 
 .admin-table-actions {
@@ -5828,6 +6109,10 @@ body[data-page="admin-dashboard"] {
 
 .admin-table tbody tr:hover {
   background: rgba(242, 101, 60, 0.06);
+}
+
+.admin-table tbody tr.admin-court-detail-row:hover {
+  background: transparent;
 }
 
 .admin-table .status-pill,
@@ -5872,10 +6157,22 @@ body[data-page="admin-dashboard"] {
   }
 
   .admin-schedule-layout,
-  .admin-schedule-top-grid,
   .admin-schedule-context-grid,
   .admin-day-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-schedule-context-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  .admin-schedule-context-calendar {
+    justify-content: flex-start;
+  }
+
+  .admin-schedule-context-calendar .date-picker-shell {
+    width: 100%;
   }
 
   .admin-schedule-actions-grid {
@@ -6000,6 +6297,13 @@ body[data-page="admin-dashboard"] {
     background: #fff;
   }
 
+  .admin-table tr.admin-court-detail-row {
+    margin-top: -0.5rem;
+    padding-top: 0;
+    border-top: 0;
+    border-radius: 0 0 18px 18px;
+  }
+
   .admin-table td {
     display: grid;
     grid-template-columns: minmax(92px, 0.35fr) minmax(0, 1fr);
@@ -6011,6 +6315,16 @@ body[data-page="admin-dashboard"] {
 
   .admin-table td:last-child {
     border-bottom: 0;
+  }
+
+  .admin-table tr.admin-court-detail-row td {
+    display: block;
+    padding-top: 0;
+    border-bottom: 0;
+  }
+
+  .admin-table tr.admin-court-detail-row td::before {
+    content: none;
   }
 
   .admin-table td::before {
@@ -6025,6 +6339,20 @@ body[data-page="admin-dashboard"] {
   .admin-court-cell,
   .admin-table-actions {
     min-width: 0;
+  }
+
+  .admin-court-summary-row td:first-child {
+    padding-right: 0;
+  }
+
+  .admin-court-row-trigger::after {
+    right: 0.15rem;
+  }
+
+  .admin-operating-detail {
+    padding: 0.85rem 0;
+    border-radius: 0;
+    background: transparent;
   }
 }
 

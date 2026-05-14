@@ -375,7 +375,6 @@
                         <th>Quadra</th>
                         <th>Modalidade</th>
                         <th>Bairro</th>
-                        <th>Funcionamento</th>
                         <th>Preço</th>
                         <th>Status</th>
                         <th>Ações</th>
@@ -398,35 +397,24 @@
               </div>
 
               <article class="admin-card admin-filter-card admin-schedule-context-card">
-                <div class="admin-card-heading">
-                  <div>
+                <div class="admin-schedule-context-layout">
+                  <div class="admin-schedule-context-copy">
                     <span class="section-kicker">contexto do dia</span>
                     <h3>Quadra, data e regra base</h3>
+                    <p>Escolha a quadra e a data para visualizar a disponibilidade.</p>
+                    <label class="toolbar-field admin-schedule-context-field">
+                      Selecionar quadra
+                      <select id="admin-schedule-court"></select>
+                    </label>
+                    <div class="admin-schedule-context-base" id="admin-schedule-context-base">
+                      <strong id="admin-schedule-context-selected">-</strong>
+                      <p id="admin-schedule-context-hours">Funcionamento padrão: -</p>
+                      <p id="admin-schedule-context-days">Dias ativos: -</p>
+                    </div>
                   </div>
-                </div>
-                <div class="toolbar-grid compact admin-filter-grid admin-schedule-top-grid">
-                  <label class="toolbar-field">
-                    Selecionar quadra
-                    <select id="admin-schedule-court"></select>
-                  </label>
-                  <label class="toolbar-field">
-                    Selecionar data
+                  <div class="admin-schedule-context-calendar">
                     <div id="admin-schedule-date" class="date-picker-shell"></div>
-                  </label>
-                </div>
-                <div class="admin-schedule-context-grid" id="admin-schedule-context-grid">
-                  <article class="admin-context-pill">
-                    <strong>Quadra</strong>
-                    <span id="admin-schedule-context-court">-</span>
-                  </article>
-                  <article class="admin-context-pill">
-                    <strong>Modalidade</strong>
-                    <span id="admin-schedule-context-modality">-</span>
-                  </article>
-                  <article class="admin-context-pill">
-                    <strong>Horário padrão</strong>
-                    <span id="admin-schedule-context-hours">-</span>
-                  </article>
+                  </div>
                 </div>
               </article>
 
