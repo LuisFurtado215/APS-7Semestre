@@ -392,18 +392,19 @@
                 <div>
                   <span class="section-kicker">controle operacional</span>
                   <h2 id="admin-horarios-title">Gerenciar Horários</h2>
+                  <small class="admin-section-note">Controle disponibilidade, bloqueios e exceções da agenda de cada quadra.</small>
                 </div>
-                <p>Filtre uma quadra, escolha a data e ajuste a disponibilidade da grade diária.</p>
+                <p>Selecione a quadra e a data para editar a agenda diária e aplicar bloqueios específicos.</p>
               </div>
 
-              <article class="admin-card admin-filter-card">
+              <article class="admin-card admin-filter-card admin-schedule-context-card">
                 <div class="admin-card-heading">
                   <div>
-                    <span class="section-kicker">agenda</span>
-                    <h3>Filtros de agenda</h3>
+                    <span class="section-kicker">contexto do dia</span>
+                    <h3>Quadra, data e regra base</h3>
                   </div>
                 </div>
-                <div class="toolbar-grid compact admin-filter-grid">
+                <div class="toolbar-grid compact admin-filter-grid admin-schedule-top-grid">
                   <label class="toolbar-field">
                     Selecionar quadra
                     <select id="admin-schedule-court"></select>
@@ -413,16 +414,74 @@
                     <div id="admin-schedule-date" class="date-picker-shell"></div>
                   </label>
                 </div>
+                <div class="admin-schedule-context-grid" id="admin-schedule-context-grid">
+                  <article class="admin-context-pill">
+                    <strong>Quadra</strong>
+                    <span id="admin-schedule-context-court">-</span>
+                  </article>
+                  <article class="admin-context-pill">
+                    <strong>Modalidade</strong>
+                    <span id="admin-schedule-context-modality">-</span>
+                  </article>
+                  <article class="admin-context-pill">
+                    <strong>Horário padrão</strong>
+                    <span id="admin-schedule-context-hours">-</span>
+                  </article>
+                </div>
               </article>
+
+              <div class="admin-schedule-layout">
+                <article class="admin-card admin-schedule-actions-card">
+                  <div class="admin-card-heading">
+                    <div>
+                      <span class="section-kicker">ações operacionais</span>
+                      <h3>Ações da data</h3>
+                    </div>
+                  </div>
+                  <div class="admin-schedule-actions-grid">
+                    <button class="button btn-primary" id="admin-block-full-day" type="button">Bloquear Data</button>
+                    <button class="button btn-secondary" id="admin-release-full-day" type="button">Liberar data</button>
+                    <button class="button btn-secondary" id="admin-add-partial-block" type="button">Bloqueio Parcial</button>
+                    <button class="button btn-secondary" id="admin-reset-day" type="button">Voltar ao Padrão</button>
+                  </div>
+                </article>
+
+                <article class="admin-card admin-schedule-summary-card">
+                  <div class="admin-card-heading">
+                    <div>
+                      <span class="section-kicker">visão do dia</span>
+                      <h3>Resumo da data</h3>
+                    </div>
+                  </div>
+                  <div class="admin-day-summary-grid" id="admin-day-summary-grid"></div>
+                  <div class="admin-day-alert" id="admin-day-alert" hidden></div>
+                </article>
+              </div>
 
               <article class="admin-card admin-schedule-card">
                 <div class="admin-card-heading">
                   <div>
                     <span class="section-kicker">grade diária</span>
-                    <h3>Status por horário</h3>
+                    <h3>Grade do dia</h3>
+                    <p>Visualize e edite a disponibilidade por faixa de horário.</p>
                   </div>
                 </div>
-                <div class="admin-schedule-grid" id="admin-schedule-grid"></div>
+                <div class="admin-schedule-banner" id="admin-schedule-banner" hidden></div>
+                <div class="admin-schedule-toolbar">
+                  <p class="admin-schedule-inline-summary" id="admin-schedule-inline-summary"></p>
+                  <button class="admin-slot-action" id="admin-toggle-closed-slots" type="button">Mostrar horários fechados</button>
+                </div>
+                <div class="admin-schedule-periods" id="admin-schedule-grid"></div>
+              </article>
+
+              <article class="admin-card admin-schedule-exceptions-card">
+                <div class="admin-card-heading">
+                  <div>
+                    <span class="section-kicker">exceções futuras</span>
+                    <h3>Bloqueios e exceções cadastradas</h3>
+                  </div>
+                </div>
+                <div class="admin-exception-list" id="admin-exception-list"></div>
               </article>
             </section>
 

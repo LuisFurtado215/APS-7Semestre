@@ -272,6 +272,27 @@
     return hours * 60 + minutes;
   };
 
+  const normalizeClockTime = (value, fallback = "00:00") => {
+    const match = String(value || "").match(/^(\d{1,2}):(\d{1,2})$/);
+
+    if (!match) {
+      return fallback;
+    }
+
+    const rawHours = Number(match[1]);
+    const rawMinutes = Number(match[2]);
+
+    if (Number.isNaN(rawHours) || Number.isNaN(rawMinutes)) {
+      return fallback;
+    }
+
+    const hours = Math.min(Math.max(rawHours, 0), 23);
+    const minutes = Math.min(Math.max(rawMinutes, 0), 59);
+    const roundedMinutes = Math.floor(minutes / 5) * 5;
+
+    return `${padDatePart(hours)}:${padDatePart(roundedMinutes)}`;
+  };
+
   const normalizeTimeSlotValue = (value) => {
     if (TIME_SLOTS.includes(value)) {
       return value;
@@ -297,7 +318,12 @@
 
   const normalizeStoredOverrides = (overrides = {}) =>
     Object.entries(overrides).reduce((normalized, [key, dayOverrides]) => {
-      const normalizedDay = Object.entries(dayOverrides || {}).reduce(
+      const source =
+        dayOverrides && typeof dayOverrides === "object" && ("slots" in dayOverrides || "meta" in dayOverrides)
+          ? dayOverrides
+          : { slots: dayOverrides || {}, meta: {} };
+
+      const normalizedSlots = Object.entries(source.slots || {}).reduce(
         (accumulator, [time, value]) => {
           accumulator[normalizeTimeSlotValue(time)] = value;
           return accumulator;
@@ -305,7 +331,25 @@
         {}
       );
 
-      normalized[key] = normalizedDay;
+      const meta = source.meta || {};
+      const normalizedPartialBlocks = Array.isArray(meta.partialBlocks)
+        ? meta.partialBlocks.map((block) => ({
+            inicio: normalizeClockTime(block?.inicio || "08:00", "08:00"),
+            fim: normalizeClockTime(block?.fim || "09:00", "09:00"),
+            motivo: block?.motivo || "Bloqueio parcial",
+          }))
+        : [];
+
+      normalized[key] = {
+        slots: normalizedSlots,
+        meta: {
+          fullDayBlocked: Boolean(meta.fullDayBlocked),
+          blockReason: meta.blockReason || "",
+          blockReasonLabel: meta.blockReasonLabel || "",
+          note: meta.note || "",
+          partialBlocks: normalizedPartialBlocks,
+        },
+      };
       return normalized;
     }, {});
 
@@ -602,6 +646,9 @@
       Disponível: "status-disponivel",
       Reservado: "status-reservado",
       Bloqueado: "status-bloqueado",
+      Pausa: "status-pausa",
+      "Fora do funcionamento": "status-fora-funcionamento",
+      "Fechado por data": "status-fechado-data",
       Ativa: "status-disponivel",
       Inativa: "status-bloqueado",
     };
@@ -1813,6 +1860,42 @@
   const getScheduleOverrides = () =>
     readJson(STORAGE_KEYS.scheduleOverrides, {});
 
+  const getScheduleOverrideKey = (courtId, date) => `${courtId}_${date}`;
+
+  const getEmptyScheduleOverride = () => ({
+    slots: {},
+    meta: {
+      fullDayBlocked: false,
+      blockReason: "",
+      blockReasonLabel: "",
+      note: "",
+      partialBlocks: [],
+    },
+  });
+
+  const getScheduleOverrideForDay = (courtId, date) => {
+    const overrides = getScheduleOverrides();
+    const key = getScheduleOverrideKey(courtId, date);
+    return overrides[key] || getEmptyScheduleOverride();
+  };
+
+  const upsertScheduleOverride = (courtId, date, updater) => {
+    const overrides = getScheduleOverrides();
+    const key = getScheduleOverrideKey(courtId, date);
+    const current = overrides[key] || getEmptyScheduleOverride();
+    const next = typeof updater === "function" ? updater(current) : current;
+    overrides[key] = next;
+    saveScheduleOverrides(overrides);
+    return next;
+  };
+
+  const clearScheduleOverrideForDay = (courtId, date) => {
+    const overrides = getScheduleOverrides();
+    const key = getScheduleOverrideKey(courtId, date);
+    delete overrides[key];
+    saveScheduleOverrides(overrides);
+  };
+
   const normalizePauseRanges = (pauses = []) =>
     (Array.isArray(pauses) ? pauses : [])
       .map((pause) => ({
@@ -1879,8 +1962,6 @@
   };
 
   const getSchedule = (courtId, date) => {
-    const overrides = getScheduleOverrides();
-    const key = `${courtId}_${date}`;
     const reservations = getReservations();
     const court = getCourtById(courtId);
     const weekdayKey = getWeekdayKeyFromDate(date);
@@ -1892,17 +1973,45 @@
       start: timeToMinutes(pause.inicio),
       end: timeToMinutes(pause.fim),
     }));
+    const dayOverride = getScheduleOverrideForDay(courtId, date);
+    const partialBlocks = Array.isArray(dayOverride.meta?.partialBlocks)
+      ? dayOverride.meta.partialBlocks.map((block) => ({
+          start: timeToMinutes(block.inicio),
+          end: timeToMinutes(block.fim),
+          motivo: block.motivo || "Bloqueio parcial",
+        }))
+      : [];
     const schedule = TIME_SLOTS.map((time) => {
       const template = DEFAULT_SCHEDULE_TEMPLATE[time] || { status: "Disponível" };
       const slotMinutes = timeToMinutes(time);
+      const slotEndMinutes = slotMinutes + 60;
       const isOutsideHours = slotMinutes < openingMinutes || slotMinutes >= closingMinutes;
       const isPaused =
-        pauseRanges.some((pause) => slotMinutes >= pause.start && slotMinutes < pause.end);
-      const generatedStatus =
-        !isOperatingDay || isOutsideHours || isPaused ? "Bloqueado" : template.status;
+        pauseRanges.some((pause) => slotMinutes < pause.end && slotEndMinutes > pause.start);
+      const matchedPartialBlock = partialBlocks.find(
+        (block) => slotMinutes < block.end && slotEndMinutes > block.start
+      );
+      let generatedStatus = template.status;
+      let description = "Livre para agendamento";
+
+      if (dayOverride.meta?.fullDayBlocked) {
+        generatedStatus = "Fechado por data";
+        description = dayOverride.meta?.blockReasonLabel || "Data bloqueada integralmente";
+      } else if (!isOperatingDay || isOutsideHours) {
+        generatedStatus = "Fora do funcionamento";
+        description = "Fora da regra de funcionamento da quadra";
+      } else if (matchedPartialBlock) {
+        generatedStatus = "Bloqueado";
+        description = matchedPartialBlock.motivo;
+      } else if (isPaused) {
+        generatedStatus = "Pausa";
+        description = "Intervalo operacional";
+      }
+
       return {
         horario: time,
         status: generatedStatus,
+        descricao: description,
         cliente: template.cliente || "",
         telefone: template.telefone || "",
         modalidade: template.modalidade || court?.modalidade || "",
@@ -1925,22 +2034,33 @@
       coveredSlots.forEach((time) => {
         const slot = schedule.find((item) => item.horario === time);
 
-        if (slot) {
+        if (
+          slot &&
+          slot.status !== "Fechado por data" &&
+          slot.status !== "Bloqueado"
+        ) {
           slot.status = "Reservado";
           slot.cliente = reservation.cliente;
           slot.telefone = reservation.telefone || "(16) 99999-0000";
           slot.modalidade = reservation.modalidade;
+          slot.descricao = "Reserva confirmada";
         }
       });
     });
 
-    const customForDay = overrides[key] || {};
+    const customForDay = dayOverride.slots || {};
 
     schedule.forEach((slot) => {
       const customState = customForDay[slot.horario];
 
       if (customState) {
         slot.status = customState.status;
+        slot.descricao =
+          customState.status === "Bloqueado"
+            ? "Bloqueio manual"
+            : customState.status === "Disponível"
+              ? "Livre para agendamento"
+              : slot.descricao;
         slot.cliente = customState.cliente || slot.cliente;
         slot.telefone = customState.telefone || slot.telefone;
         slot.modalidade = customState.modalidade || slot.modalidade;
@@ -1951,21 +2071,30 @@
   };
 
   const setScheduleStatus = (courtId, date, time, status) => {
-    const overrides = getScheduleOverrides();
-    const key = `${courtId}_${date}`;
     const court = getCourtById(courtId);
-    const current = overrides[key] || {};
+    upsertScheduleOverride(courtId, date, (current) => {
+      const next = {
+        slots: { ...(current.slots || {}) },
+        meta: {
+          ...getEmptyScheduleOverride().meta,
+          ...(current.meta || {}),
+        },
+      };
 
-    current[time] = {
-      status,
-      modalidade: court?.modalidade || "",
-      cliente:
-        status === "Reservado" ? "Reserva Manual" : current[time]?.cliente || "",
-      telefone: current[time]?.telefone || "",
-    };
+      next.slots[time] = {
+        status,
+        modalidade: court?.modalidade || "",
+        cliente:
+          status === "Reservado" ? "Reserva Manual" : next.slots[time]?.cliente || "",
+        telefone: next.slots[time]?.telefone || "",
+      };
 
-    overrides[key] = current;
-    saveScheduleOverrides(overrides);
+      if (status === "Disponível") {
+        delete next.slots[time];
+      }
+
+      return next;
+    });
   };
 
   const createReservation = (reservation) => {
@@ -5297,15 +5426,432 @@
   const initAdminSchedules = () => {
     const courtSelect = document.getElementById("admin-schedule-court");
     const datePickerRoot = document.getElementById("admin-schedule-date");
-    const scheduleNode =
-      document.getElementById("admin-schedule-grid") ||
-      document.getElementById("admin-schedule-table");
+    const scheduleNode = document.getElementById("admin-schedule-grid");
+    const contextCourtNode = document.getElementById("admin-schedule-context-court");
+    const contextModalityNode = document.getElementById("admin-schedule-context-modality");
+    const contextHoursNode = document.getElementById("admin-schedule-context-hours");
+    const summaryNode = document.getElementById("admin-day-summary-grid");
+    const alertNode = document.getElementById("admin-day-alert");
+    const bannerNode = document.getElementById("admin-schedule-banner");
+    const inlineSummaryNode = document.getElementById("admin-schedule-inline-summary");
+    const toggleClosedButton = document.getElementById("admin-toggle-closed-slots");
+    const exceptionNode = document.getElementById("admin-exception-list");
+    const fullDayButton = document.getElementById("admin-block-full-day");
+    const releaseButton = document.getElementById("admin-release-full-day");
+    const partialButton = document.getElementById("admin-add-partial-block");
+    const resetButton = document.getElementById("admin-reset-day");
 
-    if (!courtSelect || !datePickerRoot || !scheduleNode) {
+    if (
+      !courtSelect ||
+      !datePickerRoot ||
+      !scheduleNode ||
+      !contextCourtNode ||
+      !contextModalityNode ||
+      !contextHoursNode ||
+      !summaryNode ||
+      !alertNode ||
+      !bannerNode ||
+      !inlineSummaryNode ||
+      !toggleClosedButton ||
+      !exceptionNode ||
+      !fullDayButton ||
+      !releaseButton ||
+      !partialButton ||
+      !resetButton
+    ) {
       return;
     }
 
     let selectedScheduleDate = getTodayDateString();
+    let hideClosedSlots = true;
+
+    const PERIOD_GROUPS = [
+      { key: "madrugada", label: "Madrugada", from: 0, to: 5 },
+      { key: "manha", label: "Manhã", from: 6, to: 11 },
+      { key: "tarde", label: "Tarde", from: 12, to: 17 },
+      { key: "noite", label: "Noite", from: 18, to: 23 },
+    ];
+
+    const FIVE_MINUTE_OPTIONS = Array.from({ length: 288 }, (_, index) =>
+      minutesToTime(index * 5)
+    );
+
+    const capitalize = (value = "") =>
+      String(value || "").charAt(0).toUpperCase() + String(value || "").slice(1);
+
+    const getWeekdayLongLabel = (date) => {
+      const parsedDate = parseDateString(date);
+
+      if (!(parsedDate instanceof Date)) {
+        return "Selecione uma data";
+      }
+
+      return capitalize(
+        new Intl.DateTimeFormat("pt-BR", { weekday: "long" }).format(parsedDate)
+      );
+    };
+
+    const hasActiveOverride = (override) => {
+      const hasSlots = Object.keys(override?.slots || {}).length > 0;
+      const meta = override?.meta || {};
+      const hasMeta =
+        Boolean(meta.fullDayBlocked) ||
+        Boolean(meta.note) ||
+        (Array.isArray(meta.partialBlocks) && meta.partialBlocks.length > 0);
+
+      return hasSlots || hasMeta;
+    };
+
+    const cleanupOverrideIfEmpty = (courtId, date) => {
+      const override = getScheduleOverrideForDay(courtId, date);
+
+      if (!hasActiveOverride(override)) {
+        clearScheduleOverrideForDay(courtId, date);
+      }
+    };
+
+    const getOverrideSummary = (courtId, date) => {
+      const override = getScheduleOverrideForDay(courtId, date);
+      const blockedSlots = Object.values(override.slots || {}).filter(
+        (slot) => slot?.status === "Bloqueado"
+      );
+
+      return {
+        override,
+        hasOverride: hasActiveOverride(override),
+        hasFullDayBlock: Boolean(override.meta?.fullDayBlocked),
+        hasPartialBlocks:
+          Array.isArray(override.meta?.partialBlocks) && override.meta.partialBlocks.length > 0,
+        hasManualBlocks: blockedSlots.length > 0,
+        hasNote: Boolean(override.meta?.note),
+      };
+    };
+
+    const getDayStatus = (court, date, schedule) => {
+      const weekdayKey = getWeekdayKeyFromDate(date);
+      const overrideSummary = getOverrideSummary(court.id, date);
+      const pauses = getCourtPauseRanges(court, weekdayKey);
+
+      if (overrideSummary.hasFullDayBlock) {
+        return {
+          label: "Data bloqueada",
+          className: "status-fechado-data",
+        };
+      }
+
+      if (!court.diasFuncionamento.includes(weekdayKey)) {
+        return {
+          label: "Fora do funcionamento padrão",
+          className: "status-fora-funcionamento",
+        };
+      }
+
+      if (
+        overrideSummary.hasPartialBlocks ||
+        overrideSummary.hasManualBlocks ||
+        schedule.some((slot) => slot.status === "Bloqueado")
+      ) {
+        return {
+          label: "Data com horários bloqueados",
+          className: "status-bloqueado",
+        };
+      }
+
+      if (pauses.length) {
+        return {
+          label: "Data com pausa/interrupção",
+          className: "status-pausa",
+        };
+      }
+
+      return {
+        label: "Funcionamento normal",
+        className: "status-disponivel",
+      };
+    };
+
+    const getSchedulePeriods = (schedule) =>
+      PERIOD_GROUPS.map((group) => ({
+        ...group,
+        slots: schedule.filter((slot) => {
+          const hour = Number(String(slot.horario || "00:00").split(":")[0]);
+          return hour >= group.from && hour <= group.to;
+        }),
+      })).filter((group) => group.slots.length);
+
+    const getCompactSlotStatus = (slot) => {
+      if (slot.status === "Fora do funcionamento" || slot.status === "Fechado por data") {
+        return "Fechado";
+      }
+
+      return slot.status;
+    };
+
+    const getCompactSlotDescription = (slot) => {
+      const compactStatus = getCompactSlotStatus(slot);
+      const map = {
+        Disponível: "Livre",
+        Reservado: "Reserva",
+        Bloqueado: "Indisp.",
+        Pausa: "Pausa",
+        Fechado: "Fechado",
+      };
+
+      return map[compactStatus] || compactStatus;
+    };
+
+    const isClosedSlot = (slot) =>
+      slot.status === "Fora do funcionamento" || slot.status === "Fechado por data";
+
+    const getInlineScheduleSummary = (schedule) => {
+      const counts = schedule.reduce(
+        (accumulator, slot) => {
+          const compactStatus = getCompactSlotStatus(slot);
+          accumulator[compactStatus] = (accumulator[compactStatus] || 0) + 1;
+          return accumulator;
+        },
+        {
+          Disponível: 0,
+          Reservado: 0,
+          Bloqueado: 0,
+          Pausa: 0,
+          Fechado: 0,
+        }
+      );
+
+      return `${counts["Disponível"]} disponíveis • ${counts["Reservado"]} reservados • ${counts["Bloqueado"]} bloqueados • ${counts["Fechado"]} fechados`;
+    };
+
+    const getExceptionsForCourt = (courtId) =>
+      Object.entries(getScheduleOverrides())
+        .filter(([key]) => String(key).startsWith(`${courtId}_`))
+        .map(([key, value]) => {
+          const date = key.replace(`${courtId}_`, "");
+          const override = value || getEmptyScheduleOverride();
+          const manualBlockedSlots = Object.entries(override.slots || {})
+            .filter(([, slot]) => slot?.status === "Bloqueado")
+            .map(([time]) => time)
+            .sort();
+
+          let type = "Exceção manual";
+          let detail = "Agenda personalizada para esta data.";
+          let badgeClass = "status-bloqueado";
+
+          if (override.meta?.fullDayBlocked) {
+            type = "Data bloqueada";
+            detail = override.meta?.blockReasonLabel || "Data fechada integralmente.";
+            badgeClass = "status-fechado-data";
+          } else if (Array.isArray(override.meta?.partialBlocks) && override.meta.partialBlocks.length) {
+            const [firstBlock] = override.meta.partialBlocks;
+            type = "Bloqueio parcial";
+            detail = `${firstBlock.inicio} às ${firstBlock.fim}${firstBlock.motivo ? ` • ${firstBlock.motivo}` : ""}`;
+            badgeClass = "status-bloqueado";
+          } else if (manualBlockedSlots.length) {
+            type = "Horários bloqueados";
+            detail = manualBlockedSlots.join(", ");
+            badgeClass = "status-bloqueado";
+          } else if (override.meta?.note) {
+            type = "Observação";
+            detail = override.meta.note;
+            badgeClass = "status-pausa";
+          }
+
+          return {
+            date,
+            type,
+            detail,
+            badgeClass,
+            hasOverride: hasActiveOverride(override),
+          };
+        })
+        .filter((item) => item.hasOverride)
+        .sort((left, right) => left.date.localeCompare(right.date));
+
+    const renderContext = (court, date, schedule) => {
+      const operatingLabel = getCourtOperatingLabelForDate(court, date);
+      contextCourtNode.textContent = court.nome;
+      contextModalityNode.textContent = court.modalidade;
+      contextHoursNode.textContent = operatingLabel.range;
+    };
+
+    const renderSummary = (court, date, schedule) => {
+      const overrideSummary = getOverrideSummary(court.id, date);
+      const operatingLabel = getCourtOperatingLabelForDate(court, date);
+      const availableCount = schedule.filter((slot) => slot.status === "Disponível").length;
+      const reservedCount = schedule.filter((slot) => slot.status === "Reservado").length;
+
+      summaryNode.innerHTML = [
+        ["Quadra", court.nome],
+        ["Data", formatDate(date)],
+        ["Dia da semana", getWeekdayLongLabel(date)],
+        ["Funcionamento padrão", operatingLabel.range],
+        ["Horários disponíveis", String(availableCount)],
+        ["Horários reservados", String(reservedCount)],
+      ]
+        .map(
+          ([label, value]) => `
+            <article class="admin-summary-item">
+              <strong>${label}</strong>
+              <span>${value}</span>
+            </article>
+          `
+        )
+        .join("");
+
+      const messages = [];
+
+      if (overrideSummary.hasFullDayBlock) {
+        messages.push(
+          `Esta data foi bloqueada integralmente. Motivo: ${overrideSummary.override.meta?.blockReasonLabel || "Bloqueio operacional"}.`
+        );
+      } else if (overrideSummary.hasPartialBlocks) {
+        const blockLabels = overrideSummary.override.meta.partialBlocks
+          .map((block) => `${block.inicio} às ${block.fim}`)
+          .join(" • ");
+        messages.push(`Existem bloqueios parciais ativos: ${blockLabels}.`);
+      }
+
+      if (overrideSummary.override.meta?.note) {
+        messages.push(`Observação: ${overrideSummary.override.meta.note}`);
+      }
+
+      if (!messages.length) {
+        alertNode.hidden = true;
+        alertNode.innerHTML = "";
+        return;
+      }
+
+      alertNode.hidden = false;
+      alertNode.innerHTML = messages.map((message) => `<p>${message}</p>`).join("");
+    };
+
+    const renderScheduleGrid = (court, date, schedule) => {
+      const overrideSummary = getOverrideSummary(court.id, date);
+      const visibleSchedule = hideClosedSlots
+        ? schedule.filter((slot) => !isClosedSlot(slot))
+        : schedule;
+
+      inlineSummaryNode.textContent = getInlineScheduleSummary(schedule);
+      toggleClosedButton.textContent = hideClosedSlots
+        ? "Mostrar horários fechados"
+        : "Ocultar horários fechados";
+
+      if (overrideSummary.hasFullDayBlock) {
+        bannerNode.hidden = false;
+        bannerNode.innerHTML = `
+          <strong>Data bloqueada integralmente</strong>
+          <p>Nenhum horário disponível nesta data.</p>
+        `;
+        scheduleNode.innerHTML = `<div class="empty-state">Nenhum horário disponível nesta data.</div>`;
+        toggleClosedButton.disabled = true;
+        return;
+      } else {
+        bannerNode.hidden = true;
+        bannerNode.innerHTML = "";
+      }
+
+      toggleClosedButton.disabled = false;
+
+      const periods = getSchedulePeriods(visibleSchedule).filter((period) => period.slots.length);
+
+      scheduleNode.innerHTML = periods.length
+        ? periods
+        .map(
+          (period) => `
+            <section class="admin-schedule-period">
+              <div class="admin-schedule-period-head">
+                <strong>${period.label}</strong>
+                <span>${period.slots.length} horários</span>
+              </div>
+              <div class="admin-schedule-list">
+                ${period.slots
+                  .map((slot) => {
+                    const compactStatus = getCompactSlotStatus(slot);
+                    const compactDescription = getCompactSlotDescription(slot);
+                    let action = `<button class="admin-slot-action is-disabled" type="button" disabled>—</button>`;
+
+                    if (!overrideSummary.hasFullDayBlock && slot.status === "Disponível") {
+                      action = `<button class="admin-slot-action" type="button" data-block-slot="${slot.horario}">Bloquear</button>`;
+                    } else if (!overrideSummary.hasFullDayBlock && slot.status === "Bloqueado") {
+                      action = `<button class="admin-slot-action" type="button" data-release-slot="${slot.horario}">Liberar</button>`;
+                    } else if (slot.status === "Reservado") {
+                      action = `
+                        <button
+                          class="admin-slot-action"
+                          type="button"
+                          data-view-slot="${slot.horario}"
+                          data-cliente="${slot.cliente || ""}"
+                          data-telefone="${slot.telefone || ""}"
+                          data-modalidade="${slot.modalidade || ""}"
+                        >
+                          Ver reserva
+                        </button>
+                      `;
+                    }
+
+                    return `
+                      <article class="admin-schedule-slot ${statusClass(slot.status)}">
+                        <strong class="admin-schedule-slot-time">${slot.horario}</strong>
+                        <div class="admin-schedule-slot-copy">
+                          <strong>${compactStatus}</strong>
+                          <p>${compactDescription}</p>
+                        </div>
+                        <div class="admin-schedule-slot-meta">
+                          <span class="status-pill ${statusClass(slot.status)}">${compactStatus}</span>
+                          <div class="admin-slot-actions">
+                            ${action}
+                          </div>
+                        </div>
+                      </article>
+                    `;
+                  })
+                  .join("")}
+              </div>
+            </section>
+          `
+        )
+        .join("")
+        : `<div class="empty-state">Nenhum horário visível com o filtro atual.</div>`;
+    };
+
+    const renderExceptions = (courtId) => {
+      const exceptions = getExceptionsForCourt(courtId);
+
+      if (!exceptions.length) {
+        exceptionNode.innerHTML = `
+          <div class="empty-state">
+            Nenhum bloqueio ou exceção especial cadastrado para esta quadra.
+          </div>
+        `;
+        return;
+      }
+
+      exceptionNode.innerHTML = exceptions
+        .map(
+          (item) => `
+            <article class="admin-exception-item">
+              <strong>${formatDate(item.date)}</strong>
+              <div class="admin-exception-copy">
+                <span class="status-pill ${item.badgeClass}">${item.type}</span>
+                <span>${item.detail}</span>
+              </div>
+              <div class="admin-exception-actions">
+                <button class="admin-slot-action" type="button" data-open-exception="${item.date}">Abrir</button>
+                <button class="admin-slot-action" type="button" data-remove-exception="${item.date}">Remover</button>
+              </div>
+            </article>
+          `
+        )
+        .join("");
+    };
+
+    const syncActionStates = (courtId, date) => {
+      const overrideSummary = getOverrideSummary(courtId, date);
+
+      releaseButton.disabled = !overrideSummary.hasFullDayBlock;
+      partialButton.disabled = overrideSummary.hasFullDayBlock;
+      resetButton.disabled = !overrideSummary.hasOverride;
+    };
 
     const populateCourtSelect = () => {
       const previousValue = courtSelect.value;
@@ -5347,53 +5893,265 @@
 
       if (!court) {
         scheduleNode.innerHTML = `<div class="empty-state">Cadastre uma quadra para gerenciar horários.</div>`;
+        summaryNode.innerHTML = "";
+        contextCourtNode.textContent = "-";
+        contextModalityNode.textContent = "-";
+        contextHoursNode.textContent = "-";
+        inlineSummaryNode.textContent = "";
+        exceptionNode.innerHTML = "";
+        bannerNode.hidden = true;
+        alertNode.hidden = true;
+        fullDayButton.disabled = true;
+        releaseButton.disabled = true;
+        partialButton.disabled = true;
+        toggleClosedButton.disabled = true;
+        resetButton.disabled = true;
         return;
       }
 
+      fullDayButton.disabled = false;
+      toggleClosedButton.disabled = false;
       const schedule = getSchedule(courtId, selectedScheduleDate);
+      renderContext(court, selectedScheduleDate, schedule);
+      renderSummary(court, selectedScheduleDate, schedule);
+      renderScheduleGrid(court, selectedScheduleDate, schedule);
+      renderExceptions(courtId);
+      syncActionStates(courtId, selectedScheduleDate);
+    };
 
-      scheduleNode.innerHTML = schedule
-        .map(
-          (slot) => {
-            const description =
-              slot.status === "Reservado"
-                ? `${slot.cliente || "Cliente"} • ${slot.modalidade || court.modalidade}`
-                : slot.status === "Bloqueado"
-                  ? "Indisponível para novas reservas"
-                  : "Livre para agendamento";
+    const openFullDayBlockModal = () => {
+      const courtId = Number(courtSelect.value);
+      const court = getCourtById(courtId);
 
-            return `
-              <article class="admin-schedule-slot ${statusClass(slot.status)}">
-                <div class="admin-schedule-slot-head">
-                  <strong class="admin-schedule-slot-time">${slot.horario}</strong>
-                  <span class="status-pill ${statusClass(slot.status)}">${slot.status}</span>
-                </div>
-                <p>${description}</p>
-                <div class="table-actions">
-                  ${
-                    slot.status === "Disponível"
-                      ? `<button class="admin-slot-action" type="button" data-block-slot="${slot.horario}">Bloquear</button>`
-                      : ""
-                  }
-                  ${
-                    slot.status === "Bloqueado"
-                      ? `<button class="admin-slot-action" type="button" data-release-slot="${slot.horario}">Liberar</button>`
-                      : ""
-                  }
-                  ${
-                    slot.status === "Reservado"
-                      ? `<button class="admin-slot-action" type="button" data-view-slot="${slot.horario}" data-cliente="${slot.cliente}" data-telefone="${slot.telefone}" data-modalidade="${slot.modalidade}">Ver reserva</button>`
-                      : ""
-                  }
-                </div>
-              </article>
-            `;
-          }
-        )
-        .join("");
+      if (!court) {
+        return;
+      }
+
+      showModal({
+        title: "Bloquear esta data?",
+        html: `
+          <div class="modal-form-grid admin-modal-form">
+            <div class="admin-summary-item">
+              <strong>Data</strong>
+              <span>${formatDate(selectedScheduleDate)}</span>
+            </div>
+            <div class="admin-summary-item">
+              <strong>Quadra</strong>
+              <span>${court.nome}</span>
+            </div>
+            <label>
+              Motivo do bloqueio
+              <select id="admin-full-day-reason">
+                <option value="Feriado">Feriado</option>
+                <option value="Manutenção">Manutenção</option>
+                <option value="Evento privado">Evento privado</option>
+                <option value="Indisponibilidade operacional">Indisponibilidade operacional</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </label>
+            <label id="admin-full-day-other-wrap" hidden>
+              Descreva o motivo
+              <input id="admin-full-day-other" type="text" placeholder="Ex.: Feriado municipal" />
+            </label>
+          </div>
+        `,
+        actions: [
+          {
+            label: "Cancelar",
+            variant: "secondary",
+            onClick: closeSharedModal,
+          },
+          {
+            label: "Confirmar",
+            variant: "primary",
+            onClick: () => {
+              const reasonSelect = document.getElementById("admin-full-day-reason");
+              const otherInput = document.getElementById("admin-full-day-other");
+              const selectedReason = reasonSelect?.value || "Feriado";
+              const customReason = String(otherInput?.value || "").trim();
+              const blockReasonLabel =
+                selectedReason === "Outro" ? customReason || "Outro motivo operacional" : selectedReason;
+
+              upsertScheduleOverride(courtId, selectedScheduleDate, (current) => ({
+                slots: { ...(current.slots || {}) },
+                meta: {
+                  ...getEmptyScheduleOverride().meta,
+                  ...(current.meta || {}),
+                  fullDayBlocked: true,
+                  blockReason: selectedReason,
+                  blockReasonLabel,
+                },
+              }));
+
+              closeSharedModal();
+              renderRows();
+              notifyAdminDataChange();
+              showToast("Data bloqueada com sucesso.", "success");
+            },
+          },
+        ],
+      });
+
+      const reasonSelect = document.getElementById("admin-full-day-reason");
+      const otherWrap = document.getElementById("admin-full-day-other-wrap");
+
+      syncCustomizedSelects(document.getElementById("shared-modal-content"));
+      reasonSelect?.addEventListener("change", () => {
+        otherWrap.hidden = reasonSelect.value !== "Outro";
+      });
+    };
+
+    const openPartialBlockModal = () => {
+      const courtId = Number(courtSelect.value);
+      const court = getCourtById(courtId);
+
+      if (!court) {
+        return;
+      }
+
+      let startValue = "14:00";
+      let endValue = "16:00";
+
+      showModal({
+        title: "Adicionar bloqueio parcial",
+        html: `
+          <div class="modal-form-grid admin-modal-form">
+            <label class="modal-picker-field">
+              Início
+              <div id="admin-partial-start" class="time-picker-shell"></div>
+            </label>
+            <label class="modal-picker-field">
+              Fim
+              <div id="admin-partial-end" class="time-picker-shell"></div>
+            </label>
+            <label style="grid-column: 1 / -1;">
+              Motivo
+              <input id="admin-partial-reason" type="text" value="Bloqueio operacional" placeholder="Ex.: Manutenção da rede" />
+            </label>
+          </div>
+        `,
+        actions: [
+          {
+            label: "Cancelar",
+            variant: "secondary",
+            onClick: closeSharedModal,
+          },
+          {
+            label: "Confirmar",
+            variant: "primary",
+            onClick: () => {
+              const start = startValue || "14:00";
+              const end = endValue || "16:00";
+              const reason =
+                String(document.getElementById("admin-partial-reason")?.value || "").trim() ||
+                "Bloqueio operacional";
+              const existingBlocks =
+                getScheduleOverrideForDay(courtId, selectedScheduleDate).meta?.partialBlocks || [];
+
+              if (timeToMinutes(end) <= timeToMinutes(start)) {
+                showToast("Defina um intervalo válido para o bloqueio parcial.", "error");
+                return;
+              }
+
+              const overlapsExistingBlock = existingBlocks.some(
+                (block) =>
+                  timeToMinutes(start) < timeToMinutes(block.fim) &&
+                  timeToMinutes(end) > timeToMinutes(block.inicio)
+              );
+
+              if (overlapsExistingBlock) {
+                showToast("Esse intervalo já conflita com outro bloqueio parcial.", "error");
+                return;
+              }
+
+              upsertScheduleOverride(courtId, selectedScheduleDate, (current) => ({
+                slots: { ...(current.slots || {}) },
+                meta: {
+                  ...getEmptyScheduleOverride().meta,
+                  ...(current.meta || {}),
+                  partialBlocks: [
+                    ...((current.meta?.partialBlocks || []).filter(Boolean)),
+                    { inicio: start, fim: end, motivo: reason },
+                  ].sort((left, right) => timeToMinutes(left.inicio) - timeToMinutes(right.inicio)),
+                },
+              }));
+
+              closeSharedModal();
+              renderRows();
+              notifyAdminDataChange();
+              showToast("Bloqueio parcial adicionado.", "success");
+            },
+          },
+        ],
+      });
+
+      const startRoot = document.getElementById("admin-partial-start");
+      const endRoot = document.getElementById("admin-partial-end");
+
+      createCustomTimePicker(startRoot, {
+        placeholder: "Selecione o início",
+        onChange: (value) => {
+          startValue = value;
+        },
+      }).setState({
+        options: FIVE_MINUTE_OPTIONS,
+        value: startValue,
+        disabled: false,
+      });
+
+      createCustomTimePicker(endRoot, {
+        placeholder: "Selecione o fim",
+        onChange: (value) => {
+          endValue = value;
+        },
+      }).setState({
+        options: FIVE_MINUTE_OPTIONS,
+        value: endValue,
+        disabled: false,
+      });
+
+      syncCustomizedSelects(document.getElementById("shared-modal-content"));
     };
 
     courtSelect.addEventListener("change", renderRows);
+    toggleClosedButton.addEventListener("click", () => {
+      hideClosedSlots = !hideClosedSlots;
+      renderRows();
+    });
+    fullDayButton.addEventListener("click", openFullDayBlockModal);
+    partialButton.addEventListener("click", openPartialBlockModal);
+    releaseButton.addEventListener("click", () => {
+      const courtId = Number(courtSelect.value);
+      const override = getScheduleOverrideForDay(courtId, selectedScheduleDate);
+
+      upsertScheduleOverride(courtId, selectedScheduleDate, (current) => ({
+        slots: { ...(current.slots || {}) },
+        meta: {
+          ...getEmptyScheduleOverride().meta,
+          ...(current.meta || {}),
+          fullDayBlocked: false,
+          blockReason: "",
+          blockReasonLabel: "",
+        },
+      }));
+
+      cleanupOverrideIfEmpty(courtId, selectedScheduleDate);
+      renderRows();
+      notifyAdminDataChange();
+      showToast(
+        override.meta?.fullDayBlocked
+          ? "Data liberada com sucesso."
+          : "A data já estava liberada.",
+        override.meta?.fullDayBlocked ? "success" : "error"
+      );
+    });
+    resetButton.addEventListener("click", () => {
+      const courtId = Number(courtSelect.value);
+      clearScheduleOverrideForDay(courtId, selectedScheduleDate);
+      renderRows();
+      notifyAdminDataChange();
+      showToast("Exceção removida.", "success");
+    });
 
     scheduleNode.addEventListener("click", (event) => {
       const courtId = Number(courtSelect.value);
@@ -5405,12 +6163,15 @@
       if (blockButton) {
         setScheduleStatus(courtId, date, blockButton.dataset.blockSlot, "Bloqueado");
         renderRows();
+        notifyAdminDataChange();
         showToast("Horário bloqueado com sucesso.", "success");
       }
 
       if (releaseButton) {
         setScheduleStatus(courtId, date, releaseButton.dataset.releaseSlot, "Disponível");
+        cleanupOverrideIfEmpty(courtId, date);
         renderRows();
+        notifyAdminDataChange();
         showToast("Horário liberado novamente.", "success");
       }
 
@@ -5427,6 +6188,36 @@
             </div>
           `,
         });
+      }
+    });
+
+    exceptionNode.addEventListener("click", (event) => {
+      const openButton = event.target.closest("[data-open-exception]");
+      const removeButton = event.target.closest("[data-remove-exception]");
+      const courtId = Number(courtSelect.value);
+
+      if (openButton) {
+        selectedScheduleDate = openButton.dataset.openException || selectedScheduleDate;
+        scheduleDatePicker.setState({
+          value: selectedScheduleDate,
+          minDate: getTodayDateString(),
+        });
+        renderRows();
+      }
+
+      if (removeButton) {
+        const targetDate = removeButton.dataset.removeException;
+        clearScheduleOverrideForDay(courtId, targetDate);
+
+        if (targetDate === selectedScheduleDate) {
+          renderRows();
+        } else {
+          renderExceptions(courtId);
+          syncActionStates(courtId, selectedScheduleDate);
+        }
+
+        notifyAdminDataChange();
+        showToast("Exceção removida.", "success");
       }
     });
 
